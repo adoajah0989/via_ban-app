@@ -25,7 +25,7 @@ class tb_tokoResource extends Resource
     protected static ?string $recordTitleAttribute = 'toko';
     public static function getNavigationGroup(): ?string
     {
-        return 'Data Utama';
+        return 'Data Master';
     }
     public static function getNavigationLabel(): string
     {

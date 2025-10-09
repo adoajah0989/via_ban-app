@@ -19,9 +19,9 @@ use Filament\Tables\Table;
 
 class PengepulResource extends Resource
 {
-    protected static ?string $model = tb_Pengepul::class;
+    protected static ?string $model = tb_pengepul::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Data Utama';
+    protected static string|\UnitEnum|null $navigationGroup = 'Data Master';
     protected static string|BackedEnum|null $navigationIcon = Heroicon::User;
 
     protected static ?string $recordTitleAttribute = 'pengepul';

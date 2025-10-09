@@ -24,7 +24,7 @@ class tb_tokoForm
                     ->options(
                         \App\Models\tb_wilayah::all()
                             ->mapWithKeys(function ($item) {
-                                return [$item->kode_wilayah => $item->kode_wilayah . ' - ' . $item->wilayah];
+                                return [$item->kode_wilayah => $item->kode_wilayah . ' - ' . $item->nama_wilayah];
                             })
                             ->toArray()
                     )
@@ -38,15 +38,8 @@ class tb_tokoForm
                 TextInput::make('kode_toko')
                     ->label('Kode Toko')
                     ->required()
-                    ->reactive()
-                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                        // Ambil kode_wilayah (3 huruf) + input user (angka)
-                        $kodeWilayah = $get('kode_wilayah');
-                        if ($kodeWilayah) {
-                            // contoh: user ketik 003 -> hasil TGR003
-                            $set('kode_toko', $kodeWilayah . str_pad(preg_replace('/\D/', '', $state), 3, '0', STR_PAD_LEFT));
-                        }
-                    })
+                    
+                    
                     ->maxLength(8),
                 TextInput::make('alamat')
                     ->label('Alamat')

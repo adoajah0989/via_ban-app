@@ -28,7 +28,7 @@ class LimbahResource extends Resource
     }
     public static function getNavigationGroup(): ?string
     {
-        return 'Data Utama';
+        return 'Data Master';
     }
     public static function table(Table $table): Table
     {
