@@ -16,7 +16,6 @@ class tb_transaksi extends Model
     protected $fillable = [
         'tanggal',
         'id_toko',
-        'total_pickup',
         'sales',
         'status',
         'id_pengepul',
@@ -38,5 +37,9 @@ class tb_transaksi extends Model
      public function toko()
     {
         return $this->belongsTo(tb_toko::class, 'id_toko', 'id_toko');
+    }
+     public function pengepul()
+    {
+        return $this->belongsTo(tb_pengepul::class, 'id_pengepul', 'id_pengepul');
     }
 }

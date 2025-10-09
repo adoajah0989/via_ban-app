@@ -17,10 +17,12 @@ class PengepulForm
                     ->maxLength(255),
                 TextInput::make('nomor_telepon')
                     ->label('Nomor Telepon')
-                    ->maxLength(15),
+                    ->maxLength(15)
+                    ->unique(ignoreRecord: true),
                 TextInput::make('nomor_kendaraan')
                     ->label('Nomor Kendaraan')
-                    ->maxLength(20),
+                    ->maxLength(20)
+                    ->unique(ignoreRecord: true),
             ]);
     }
 }

@@ -26,6 +26,7 @@ class LimbahForm
                     ->label('Kode Limbah')
                     ->required()
                     ->maxLength(50)
+                    ->unique(ignoreRecord: true)
                     ->reactive()
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('kode_limbah', strtoupper($state));

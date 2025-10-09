@@ -38,9 +38,22 @@ class tb_tokoForm
                 TextInput::make('kode_toko')
                     ->label('Kode Toko')
                     ->required()
-                    
-                    
-                    ->maxLength(8),
+                    ->minLength(6)
+                    ->maxLength(6)
+                    ->unique(ignoreRecord: true)
+                    ->helperText('Format: 3 huruf diikuti 3 angka (contoh: ABC123)')
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        $normalized = strtoupper((string) $state);
+                        $set('kode_toko', $normalized);
+
+                        if (!preg_match('/^[A-Za-z]{3}\d{3}$/', $normalized)) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Format Kode Toko Salah')
+                                ->body('Kode toko harus 6 karakter: 3 huruf diikuti 3 angka (contoh: ABC123).')
+                                ->send();
+                        }
+                    }),
                 TextInput::make('alamat')
                     ->label('Alamat')
                     ->maxLength(255),

@@ -17,11 +17,13 @@ class WilayahForm
                 TextInput::make('kode_wilayah')
                     ->label('Kode Wilayah')
                     ->required()
-                    ->maxLength(10),
+                    ->maxLength(10)
+                    ->unique(ignoreRecord: true),
                 TextInput::make('nama_wilayah')
                     ->label('Nama Wilayah')
                     ->required()
-                    ->maxLength(25),
+                    ->maxLength(25)
+                    ->unique(ignoreRecord: true),
                 
             ]);
     }
