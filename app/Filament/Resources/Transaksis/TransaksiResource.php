@@ -50,7 +50,10 @@ class TransaksiResource extends Resource
     {
         return 'Data Transaksi'; // label plural
     }
-
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
+    }
     public static function table(Table $table): Table
     {
         return TransaksisTable::configure($table);
@@ -62,6 +65,7 @@ class TransaksiResource extends Resource
             //
         ];
     }
+    
 
     public static function getPages(): array
     {

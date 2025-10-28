@@ -16,6 +16,7 @@ use Filament\Actions\Action;
 use App\Models\tb_pengepul as Pengepuls;
 use Filament\Forms\Components\TextInput;
 
+
 class PengepulsTable
 {
     public static function configure(Table $table): Table
@@ -30,24 +31,25 @@ class PengepulsTable
             ->recordActions([
                 Action::make('-')
                     ->fillForm(
-                        fn (Pengepuls $record) => $record->toArray()
+                        fn(Pengepuls $record) => $record->toArray()
                     )
-                ->schema([
-                    TextInput::make('nama')->label('Nama')->disabled(),
-                    TextInput::make('nomor_telepon')->label('Nomor Telepon')->disabled(),
-                    TextInput::make('nomor_kendaraan')->label('Nomor Kendaraan')->disabled(),
-                ])
+                    ->schema([
+                        TextInput::make('nama')->label('Nama')->disabled(),
+                        TextInput::make('nomor_telepon')->label('Nomor Telepon')->disabled(),
+                        TextInput::make('nomor_kendaraan')->label('Nomor Kendaraan')->disabled(),
+                    ])
                     ->modalHeading('Detail Pengepul')
                     ->modalWidth('md')
                     ->icon('heroicon-o-eye')
                     ->color('primary'),
+
                 EditAction::make('edit')
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     Action::make('edit')
-                    ->action(fn(Pengepuls $record) => $record->delete())
-                    ->requiresConfirmation(),
+                        ->action(fn(Pengepuls $record) => $record->delete())
+                        ->requiresConfirmation(),
                     ForceDeleteBulkAction::make(),
                     RestoreBulkAction::make(),
                 ]),

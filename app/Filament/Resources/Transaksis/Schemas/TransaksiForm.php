@@ -7,6 +7,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Hidden;
+use App\Models\tb_limbah as Limbah;
 
 
 class TransaksiForm
@@ -31,15 +33,21 @@ class TransaksiForm
                     ->schema([
                         Select::make('id_limbah')
                             ->relationship('limbah', 'nama_limbah')
-                            ->required(),
+                            ->required()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                $harga = optional(Limbah::find($state))->harga ?? 0;
+                                $set('harga_saat_transaksi', $harga);
+                            }),
                         TextInput::make('jumlah')
-                            ->numeric()
+                            ->numeric()  
                             ->minValue(1)
                             ->default(1)
                             ->required(),
+                        Hidden::make('harga_saat_transaksi'),
                     ])
                     ->columns(2)
                     ->addActionLabel('Tambah Barang'),
+
             ]);
     }
 }

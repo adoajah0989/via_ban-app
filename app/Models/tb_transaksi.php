@@ -20,6 +20,7 @@ class tb_transaksi extends Model
         'status',
         'id_pengepul',
 
+
     ];
     protected static function booted()
 {
@@ -29,6 +30,8 @@ class tb_transaksi extends Model
         }
     });
 }
+
+
 
      public function details()
     {
