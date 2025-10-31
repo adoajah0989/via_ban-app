@@ -15,7 +15,7 @@ return new class extends Migration
             $table->integer('id_limbah', true);
             $table->string('nama_limbah');
             $table->integer('harga');
-            $table->string('kode_limbah');
+            $table->string('kode_limbah')->unique();
             $table->timestamps();
         });
     }

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('tb_toko', function (Blueprint $table) {
             $table->integer('id_toko', true);
             $table->string('nama_toko');
-            $table->string('kode_toko');
+            $table->string('kode_toko')->unique();
             $table->string('alamat');
             $table->string('kode_wilayah')->index('tb_toko_fk4');
             $table->string('nomor_telepon', 20)->nullable();

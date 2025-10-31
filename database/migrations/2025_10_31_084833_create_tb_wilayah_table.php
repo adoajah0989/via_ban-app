@@ -13,7 +13,11 @@ return new class extends Migration
     {
         Schema::create('tb_wilayah', function (Blueprint $table) {
             $table->string('kode_wilayah')->primary();
-            $table->string('wilayah');
+            $table->string('nama_wilayah')->unique();
+            $table->timestamp('created_at')->nullable()->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->nullable()->useCurrent();
+
+            $table->unique(['kode_wilayah']);
         });
     }
 

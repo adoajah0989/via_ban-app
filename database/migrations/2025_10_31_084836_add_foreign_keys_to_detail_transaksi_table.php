@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('detail_traksaksi', function (Blueprint $table) {
-            $table->foreign(['id_transaksi'], 'detail_traksaksi_fk1')->references(['id_transaksi'])->on('tb_transaksi')->onUpdate('restrict')->onDelete('restrict');
+        Schema::table('detail_transaksi', function (Blueprint $table) {
+            $table->foreign(['id_transaksi'], 'detail_traksaksi_fk1')->references(['id_transaksi'])->on('tb_transaksi')->onUpdate('cascade')->onDelete('cascade');
             $table->foreign(['id_limbah'], 'detail_traksaksi_fk3')->references(['id_limbah'])->on('tb_limbah')->onUpdate('restrict')->onDelete('restrict');
         });
     }
@@ -22,7 +22,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('detail_traksaksi', function (Blueprint $table) {
+        Schema::table('detail_transaksi', function (Blueprint $table) {
             $table->dropForeign('detail_traksaksi_fk1');
             $table->dropForeign('detail_traksaksi_fk3');
         });
