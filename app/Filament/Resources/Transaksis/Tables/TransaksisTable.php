@@ -207,12 +207,14 @@ class TransaksisTable
 
                             . '</body></html>';
 
-                        $safeName = 'laporan-pengepul-' . preg_replace('/[^a-z0-9]+/i', '-', strtolower($pengepul->nama)) . '-' . $start->format('Y-m') . '';
+                        $safeName = 'laporan-pengepul-' . preg_replace('/[^a-z0-9]+/i', '-', strtolower($pengepul->nama)) . '-' . $start->format('Y-m');
                         if (($data['format'] ?? 'pdf') === 'pdf' && class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
                             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('a4', 'portrait');
                             return response()->streamDownload(function () use ($pdf) {
-                                echo $pdf->stream();
-                            }, 'name.pdf');
+                                echo $pdf->output();
+                            }, $safeName . '.pdf', [
+                                'Content-Type' => 'application/pdf',
+                            ]);
                         }
                         return response()->streamDownload(function () use ($html) {
                             echo $html;
