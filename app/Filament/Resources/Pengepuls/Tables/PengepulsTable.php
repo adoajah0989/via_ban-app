@@ -41,7 +41,10 @@ class PengepulsTable
                     ->modalHeading('Detail Pengepul')
                     ->modalWidth('md')
                     ->icon('heroicon-o-eye')
-                    ->color('primary'),
+                    ->color('primary')
+                    ->modalHeading('Detail Pengepul')
+                    ->modalWidth('md'),
+
 
                 EditAction::make('edit')
             ])

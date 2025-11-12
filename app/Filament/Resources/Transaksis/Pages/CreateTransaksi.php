@@ -12,30 +12,35 @@ class CreateTransaksi extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $details = $data['details'] ?? [];
+        // Hitung total berdasarkan input non-repeater: limbah_qty[id_limbah] = jumlah
+        $qtys = (array) ($data['limbah_qty'] ?? []);
+        $positive = array_filter($qtys, fn ($q) => (int) $q > 0);
+        $ids = array_map('intval', array_keys($positive));
+
         $totalPickup = 0;
         $totalSales = 0;
 
-        if (! empty($details)) {
-            $ids = array_column($details, 'id_limbah');
+        if (! empty($ids)) {
             $prices = tb_limbah::whereIn('id_limbah', $ids)->pluck('harga', 'id_limbah');
-
-            foreach ($details as $row) {
-                $qty = (int) ($row['jumlah'] ?? 0);
-                $totalPickup += $qty;
-                $harga = (int) ($prices[$row['id_limbah']] ?? 0);
-                $totalSales += ($qty * $harga);
+            foreach ($positive as $id => $qty) {
+                $q = (int) $qty;
+                $totalPickup += $q;
+                $harga = (int) ($prices[(int) $id] ?? 0);
+                $totalSales += ($q * $harga);
             }
         }
 
-        $data['total_pickup'] = $totalPickup;
-        $data['sales'] = $totalSales;
+        $data['total_pickup'] = (int) $totalPickup;
+        $data['sales'] = (int) $totalSales;
+        unset($data['details']); // tidak lagi memakai repeater
 
         return $data;
     }
 
     protected function afterCreate(): void
     {
+        // Simpan detail dari limbah_qty
+        $this->syncDetailsFromQuantities((array) ($this->data['limbah_qty'] ?? []));
         $this->recomputeTotals();
     }
 
@@ -51,5 +56,29 @@ class CreateTransaksi extends CreateRecord
             'total_pickup' => $totalPickup,
             'sales' => $totalSales,
         ]);
+    }
+
+    private function syncDetailsFromQuantities(array $qtys): void
+    {
+        $positive = array_filter($qtys, fn ($q) => (int) $q > 0);
+        $ids = array_map('intval', array_keys($positive));
+        $prices = [];
+        if (! empty($ids)) {
+            $prices = tb_limbah::whereIn('id_limbah', $ids)->pluck('harga', 'id_limbah')->toArray();
+        }
+
+        // Reset dan simpan ulang detail
+        $this->record->details()->delete();
+        $rows = [];
+        foreach ($positive as $id => $qty) {
+            $rows[] = [
+                'id_limbah' => (int) $id,
+                'jumlah' => (int) $qty,
+                'harga_saat_transaksi' => (int) ($prices[(int) $id] ?? 0),
+            ];
+        }
+        if (! empty($rows)) {
+            $this->record->details()->createMany($rows);
+        }
     }
 }

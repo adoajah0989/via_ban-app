@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources\Transaksis\Tables;
 
+use App\Models\Post;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\DatePicker;
@@ -16,7 +16,11 @@ use Filament\Tables\Columns\SelectColumn;
 use Filament\Actions\Action;
 use App\Models\tb_transaksi as Transaksi;
 use App\Models\tb_pengepul as Pengepul;
+use App\Models\tb_limbah as Limbah;
+
 use Illuminate\Support\Carbon;
+
+use function Laravel\Prompts\select;
 
 class TransaksisTable
 {
@@ -52,10 +56,11 @@ class TransaksisTable
                                 ->with('limbah')
                                 ->get()
                                 ->map(fn($d) => [
+                                    'id_detail' => $d->id_detail, // tambahkan ini
                                     'nama_limbah' => $d->limbah->nama_limbah ?? '-',
                                     'jumlah' => $d->jumlah,
                                     'harga_saat_transaksi' => 'Rp ' . $d->harga_saat_transaksi,
-                                    'subtotal' => 'Rp ' . (float) ($d->jumlah ?? 0) * (float) ($d->harga_saat_transaksi ?? 0),
+                                    'subtotal' => 'Rp ' . ((float) ($d->jumlah ?? 0) * (float) ($d->harga_saat_transaksi ?? 0)),
                                 ])->toArray(),
                         ]
                     )
@@ -68,13 +73,15 @@ class TransaksisTable
                         // Daftar detail limbah pada transaksi
                         Repeater::make('details')
                             ->schema([
+                                TextInput::make('id')->hidden(),
                                 TextInput::make('nama_limbah')
                                     ->label('Jenis Limbah')
-                                    ->disabled(),
+                                    ->required(),
+                                    
                                 TextInput::make('jumlah')
                                     ->label('Jumlah')
                                     ->numeric()
-                                    ->disabled(),
+                                    ->required(),
                                 TextInput::make('harga_saat_transaksi')
                                     ->label('Harga aktual')
                                     ->disabled(),
@@ -83,8 +90,32 @@ class TransaksisTable
                                     ->disabled(),
                             ])
                             ->columns(4)
-                            ->disabled(),
-                    ]),
+                            
+                            ->required(),
+                    ])
+                    ->action(function (array $data, Transaksi $record): void {
+                        foreach ($data['details'] as $detail) {
+                            if (!empty($detail['id_detail'])) {
+                                $record->details()
+                                    ->where('id_detail', $detail['id_detail'])
+                                    ->update([
+                                        'jumlah' => $detail['jumlah'],
+                                    ]);
+                            }
+                        }
+                        $record->load('details.limbah');
+                        $totalPickup = (int) ($record->details->sum('jumlah'));
+                        $totalSales = (int) ($record->details->sum(function ($d) {
+                            return (int) ($d->jumlah ?? 0) * (int) ($d->limbah->harga ?? 0);
+                        }));
+
+                        $record->update([
+                            'total_pickup' => $totalPickup,
+                            'sales' => $totalSales,
+                        ]);
+
+                    }),
+
 
                 EditAction::make('edit'),
             ])
@@ -95,7 +126,7 @@ class TransaksisTable
                     ->color('success')
                     ->modalHeading('Buat Laporan Bulanan Pengepul')
                     ->modalWidth('md')
-                    ->form([
+                    ->schema([
                         Select::make('pengepul_id')
                             ->label('Pengepul')
                             ->options(fn() => Pengepul::query()->orderBy('nama')->pluck('nama', 'id_pengepul'))
@@ -124,6 +155,7 @@ class TransaksisTable
                         $transaksis = Transaksi::query()
                             ->with(['toko', 'details.limbah'])
                             ->where('id_pengepul', $pengepul->id_pengepul)
+                            ->where('status', 'selesai')
                             ->whereBetween('tanggal', [$start->toDateString(), $end->toDateString()])
                             ->orderBy('tanggal')
                             ->get();

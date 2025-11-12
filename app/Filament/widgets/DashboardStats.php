@@ -13,7 +13,10 @@ class DashboardStats extends StatsOverviewWidget
     {
         $totalNominal = (float) (tb_transaksi::query()->sum('sales'));
         $jumlahToko = (int) (tb_toko::query()->count());
-        $jumlahTransaksi = (int) (tb_transaksi::query()->count());
+        $jumlahTransaksi = (int) (tb_transaksi::query()
+        ->where('status', 'selesai')
+        ->count()
+    );
 
         return [
             Stat::make('Total Nominal', 'Rp ' . number_format($totalNominal, 0, ',', '.')),

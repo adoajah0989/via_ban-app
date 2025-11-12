@@ -22,9 +22,9 @@ class Totaltransaksi extends ChartWidget
     {
         return $schema->components([
             DatePicker::make('startDate')
-                ->default(now()->subDays(30)),
+                ->default(now()->subMonths(6)),
             DatePicker::make('endDate')
-                ->default(now()),
+                ->default(now()->endOfMonth()),
         ]);
     }
     protected function getData(): array

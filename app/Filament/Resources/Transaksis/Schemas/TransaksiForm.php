@@ -6,8 +6,8 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Hidden;
+use Filament\Schemas\Components\Section;
 use App\Models\tb_limbah as Limbah;
 
 
@@ -27,27 +27,32 @@ class TransaksiForm
                     ->preload()
                     ->label('Pengepul (opsional)')
                     ->nullable(),
-
-                Repeater::make('details')
-                    ->relationship('details') // relasi ke detail_transaksi
-                    ->schema([
-                        Select::make('id_limbah')
-                            ->relationship('limbah', 'nama_limbah')
-                            ->required()
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $harga = optional(Limbah::find($state))->harga ?? 0;
-                                $set('harga_saat_transaksi', $harga);
-                            }),
-                        TextInput::make('jumlah')
-                            ->numeric()  
-                            ->minValue(1)
-                            ->default(1)
-                            ->required(),
-                        Hidden::make('harga_saat_transaksi'),
-                    ])
-                    ->columns(2)
-                    ->addActionLabel('Tambah Barang'),
-
+                Section::make('Detail Limbah')
+                    ->description('Isi jumlah untuk tiap limbah. Biarkan 0 jika tidak diambil.')
+                    ->schema((function () {
+                        $components = [];
+                        $all = Limbah::orderBy('nama_limbah')->get(['id_limbah', 'nama_limbah']);
+                        foreach ($all as $row) {
+                            $id = (string) $row->id_limbah;
+                            $label = (string) $row->nama_limbah;
+                            $components[] = TextInput::make("limbah_qty.$id")
+                                ->label($label)
+                                ->numeric()
+                                ->minValue(0)
+                                ->default(0)
+                                ->afterStateHydrated(function ($state, callable $set, $record) use ($id) {
+                                    if ($record) {
+                                        $record->loadMissing('details');
+                                        $detail = $record->details->firstWhere('id_limbah', (int) $id);
+                                        if ($detail) {
+                                            $set("limbah_qty.$id", (int) ($detail->jumlah ?? 0));
+                                        }
+                                    }
+                                });
+                        }
+                        return $components;
+                    })())
+                    ->columns(3),
             ]);
     }
 }
