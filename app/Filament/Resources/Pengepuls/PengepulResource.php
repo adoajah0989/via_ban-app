@@ -68,6 +68,10 @@ class PengepulResource extends Resource
             'edit' => EditPengepul::route('/{record}/edit'),
         ];
     }
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['id_pengepul', 'nama'];
+    }
 
 
 }

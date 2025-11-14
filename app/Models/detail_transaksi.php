@@ -15,8 +15,8 @@ class detail_transaksi extends Model
     {
         return $this->belongsTo(tb_transaksi::class, 'id_transaksi', 'id_transaksi');
     }
-    
-public function limbah()
+
+    public function limbah()
     {
         return $this->belongsTo(tb_limbah::class, 'id_limbah', 'id_limbah');
     }

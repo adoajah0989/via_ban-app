@@ -13,7 +13,9 @@ class ListLimbahs extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->label('Limbah Baru')
+            ,
         ];
     }
     public function getTitle(): string

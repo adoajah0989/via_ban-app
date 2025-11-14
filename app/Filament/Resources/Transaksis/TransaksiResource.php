@@ -76,4 +76,8 @@ class TransaksiResource extends Resource
             'edit' => EditTransaksi::route('/{record}/edit'),
         ];
     }
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['tanggal'];
+    }
 }

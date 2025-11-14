@@ -64,4 +64,8 @@ class LimbahResource extends Resource
             'edit' => EditLimbah::route('/{record}/edit'),
         ];
     }
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['kode_limbah', 'nama_limbah'];
+    }
 }

@@ -29,7 +29,7 @@ class tb_tokoResource extends Resource
     }
     public static function getNavigationLabel(): string
     {
-        return 'Daftar Bengkel';
+        return 'Daftar Toko';
     }
 
     public static function getModelLabel(): string
@@ -71,5 +71,9 @@ class tb_tokoResource extends Resource
             'view' => Viewtb_toko::route('/{record}'),
             'edit' => Edittb_toko::route('/{record}/edit'),
         ];
+    }
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['nama_toko', 'kode_toko'];
     }
 }
