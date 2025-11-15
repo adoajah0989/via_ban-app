@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tb_wilayah', function (Blueprint $table) {
-            $table->string('kode_wilayah')->primary();
-            $table->string('nama_wilayah')->unique();
+        Schema::create('tb_harga_wilayah', function (Blueprint $table) {
+            $table->integer('id', true);
+            $table->integer('id_limbah')->index('fk_harga_limbah');
+            $table->string('kode_wilayah', 10)->nullable()->index('kode_wilayah');
+            $table->integer('harga');
             $table->timestamp('created_at')->nullable()->useCurrent();
-            $table->timestamp('updated_at')->useCurrentOnUpdate()->nullable()->useCurrent();
-
-            $table->unique(['kode_wilayah']);
+            $table->timestamp('updated_at')->nullable()->useCurrent();
         });
     }
 
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tb_wilayah');
+        Schema::dropIfExists('tb_harga_wilayah');
     }
 };

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->integer('jumlah');
             $table->integer('id_limbah')->index('detail_traksaksi_fk3');
             $table->integer('harga_saat_transaksi');
+            $table->integer('subtotal')->nullable();
         });
     }
 

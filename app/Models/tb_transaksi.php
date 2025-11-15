@@ -17,6 +17,7 @@ class tb_transaksi extends Model
         'tanggal',
         'id_toko',
         'sales',
+        'total_pickup',
         'status',
         'id_pengepul',
 

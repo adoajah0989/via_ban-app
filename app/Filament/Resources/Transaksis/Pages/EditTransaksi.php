@@ -3,12 +3,12 @@
 namespace App\Filament\Resources\Transaksis\Pages;
 
 use App\Filament\Resources\Transaksis\TransaksiResource;
+use App\Models\tb_toko;
+use App\Services\TransaksiDetailService;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
-use App\Models\tb_limbah;
-use Filament\Actions\Action;
-use Filament\Notifications\Notification;
 
 class EditTransaksi extends EditRecord
 {
@@ -24,27 +24,12 @@ class EditTransaksi extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        // Hitung total berdasarkan input non-repeater: limbah_qty[id_limbah] = jumlah
-        $qtys = (array) ($data['limbah_qty'] ?? []);
-        $positive = array_filter($qtys, fn($q) => (int) $q > 0);
-        $ids = array_map('intval', array_keys($positive));
+        $kodeWilayah = $this->resolveKodeWilayah((int) ($data['id_toko'] ?? $this->record->id_toko));
+        $summary = TransaksiDetailService::summarize((array) ($data['limbah_qty'] ?? []), $kodeWilayah);
 
-        $totalPickup = 0;
-        $totalSales = 0;
-
-        if (! empty($ids)) {
-            $prices = tb_limbah::whereIn('id_limbah', $ids)->pluck('harga', 'id_limbah');
-            foreach ($positive as $id => $qty) {
-                $q = (int) $qty;
-                $totalPickup += $q;
-                $harga = (int) ($prices[(int) $id] ?? 0);
-                $totalSales += ($q * $harga);
-            }
-        }
-
-        $data['total_pickup'] = (int) $totalPickup;
-        $data['sales'] = (int) $totalSales;
-        unset($data['details']); // tidak lagi memakai repeater
+        $data['total_pickup'] = $summary['total_pickup'];
+        $data['sales'] = $summary['total_sales'];
+        unset($data['details']);
 
         return $data;
     }
@@ -58,10 +43,10 @@ class EditTransaksi extends EditRecord
 
     private function recomputeTotals(): void
     {
-        $record = $this->record->load('details.limbah');
+        $record = $this->record->load('details');
         $totalPickup = (int) ($record->details->sum('jumlah'));
         $totalSales = (int) ($record->details->sum(function ($d) {
-            return (int) ($d->jumlah ?? 0) * (int) ($d->limbah->harga ?? 0);
+            return (int) ($d->jumlah ?? 0) * (int) ($d->harga_saat_transaksi ?? 0);
         }));
 
         $record->update([
@@ -72,25 +57,12 @@ class EditTransaksi extends EditRecord
 
     private function syncDetailsFromQuantities(array $qtys): void
     {
-        $positive = array_filter($qtys, fn($q) => (int) $q > 0);
-        $ids = array_map('intval', array_keys($positive));
-        $prices = [];
-        if (! empty($ids)) {
-            $prices = tb_limbah::whereIn('id_limbah', $ids)->pluck('harga', 'id_limbah')->toArray();
-        }
+        $kodeWilayah = $this->recordKodeWilayah();
+        $summary = TransaksiDetailService::summarize($qtys, $kodeWilayah);
 
-        // Reset dan simpan ulang detail
         $this->record->details()->delete();
-        $rows = [];
-        foreach ($positive as $id => $qty) {
-            $rows[] = [
-                'id_limbah' => (int) $id,
-                'jumlah' => (int) $qty,
-                'harga_saat_transaksi' => (int) ($prices[(int) $id] ?? 0),
-            ];
-        }
-        if (! empty($rows)) {
-            $this->record->details()->createMany($rows);
+        if (! empty($summary['rows'])) {
+            $this->record->details()->createMany($summary['rows']);
         }
     }
 
@@ -108,5 +80,21 @@ class EditTransaksi extends EditRecord
     {
         return parent::getCancelFormAction()
             ->label('Batal');
+    }
+
+    private function resolveKodeWilayah(?int $tokoId): ?string
+    {
+        if (! $tokoId) {
+            return null;
+        }
+
+        return tb_toko::whereKey($tokoId)->value('kode_wilayah');
+    }
+
+    private function recordKodeWilayah(): ?string
+    {
+        $this->record->loadMissing('toko');
+
+        return $this->record->toko->kode_wilayah ?? null;
     }
 }

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tb_toko', function (Blueprint $table) {
-            $table->foreign(['kode_wilayah'], 'tb_toko_fk4')->references(['kode_wilayah'])->on('tb_wilayah')->onUpdate('restrict')->onDelete('restrict');
+            $table->foreign(['kode_wilayah'], 'fk_kode_limbah')->references(['kode_wilayah'])->on('tb_wilayah')->onUpdate('cascade')->onDelete('cascade');
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tb_toko', function (Blueprint $table) {
-            $table->dropForeign('tb_toko_fk4');
+            $table->dropForeign('fk_kode_limbah');
         });
     }
 };

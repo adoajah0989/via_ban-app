@@ -2,34 +2,19 @@
 
 namespace App\Filament\Resources\Transaksis\Tables;
 
-use App\Models\Post;
+use App\Models\tb_limbah as Limbah;
+use App\Models\tb_transaksi as Transaksi;
+use App\Services\HargaWilayahResolver;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\SelectColumn;
-use Filament\Actions\Action;
-use App\Models\tb_transaksi as Transaksi;
-use App\Models\tb_pengepul as Pengepul;
-use App\Models\tb_limbah as Limbah;
-use App\Services\PengepulReportService;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 
-use function Laravel\Prompts\select;
-
-class variable
-{
-    public $nama_limbah;
-
-    public function __construct($value)
-    {
-        $this->nama_limbah = $value;
-    }
-}
 class TransaksisTable
 {
     public static function configure(Table $table): Table
@@ -65,7 +50,7 @@ class TransaksisTable
                                 ->with('limbah')
                                 ->get()
                                 ->map(fn($d) => [
-                                    'id_detail' => $d->id_detail, // tambahkan ini
+                                    'id_detail' => $d->id_detail,
                                     'nama_limbah' => $d->limbah->nama_limbah ?? '-',
                                     'jumlah' => $d->jumlah,
                                     'harga_saat_transaksi' => 'Rp ' . $d->harga_saat_transaksi,
@@ -82,7 +67,7 @@ class TransaksisTable
                         // Daftar detail limbah pada transaksi
                         Repeater::make('details')
                             ->schema([
-                                TextInput::make('id')->hidden(),
+                                TextInput::make('id_detail')->hidden(),
                                 Select::make('nama_limbah')
                                     ->label('Jenis Limbah')
                                     ->options(fn() => Limbah::query()->orderBy('nama_limbah')->pluck('nama_limbah', 'nama_limbah'))
@@ -106,28 +91,42 @@ class TransaksisTable
                             ->required(),
                     ])
                     ->action(function (array $data, Transaksi $record): void {
-                        foreach ($data['details'] as $detail) {
-                            if (!empty($detail['id_detail'])) {
-                                $id_limbah = Limbah::where('nama_limbah', $detail['nama_limbah'])->value('id_limbah');
-                                $record->details()
-                                    ->where('id_detail', $detail['id_detail'])
-                                    ->update([
+                        $record->loadMissing('toko');
+                        $kodeWilayah = $record->toko->kode_wilayah ?? null;
 
-                                        'id_limbah' => $id_limbah,
-                                        'harga_saat_transaksi' => Limbah::where('id_limbah', $id_limbah)->value('harga'),
-                                        'jumlah' => $detail['jumlah'],
-                                    ]);
-                            }
+                        $details = collect($data['details'] ?? [])
+                            ->filter(fn ($detail) => ! empty($detail['id_detail']))
+                            ->map(function ($detail) {
+                                $idLimbah = Limbah::where('nama_limbah', $detail['nama_limbah'])->value('id_limbah');
+
+                                return [
+                                    'row_id' => $detail['id_detail'],
+                                    'id_limbah' => (int) $idLimbah,
+                                    'jumlah' => (int) ($detail['jumlah'] ?? 0),
+                                ];
+                            })
+                            ->filter(fn ($detail) => $detail['id_limbah'] > 0);
+
+                        $priceMap = HargaWilayahResolver::getFor($details->pluck('id_limbah')->all(), $kodeWilayah);
+
+                        foreach ($details as $detail) {
+                            $record->details()
+                                ->where('id_detail', $detail['row_id'])
+                                ->update([
+                                    'id_limbah' => $detail['id_limbah'],
+                                    'harga_saat_transaksi' => (int) ($priceMap[$detail['id_limbah']] ?? 0),
+                                    'jumlah' => $detail['jumlah'],
+                                ]);
                         }
-                        $record->load('details.limbah');
-                        $totalPickup = (int) ($record->details->sum('jumlah'));
-                        $totalSales = (int) ($record->details->sum(function ($d) {
-                            return (int) ($d->jumlah ?? 0) * (int) ($d->limbah->harga ?? 0);
-                        }));
 
-                        // Optionally update id_limbah in the main record, but only if you want to set it to the last processed detail's id_limbah
+                        $record->load('details');
+
+                        $totalPickup = (int) $record->details->sum('jumlah');
+                        $totalSales = (int) $record->details->sum(function ($d) {
+                            return (int) ($d->jumlah ?? 0) * (int) ($d->harga_saat_transaksi ?? 0);
+                        });
+
                         $record->update([
-                            'id_limbah' => $record->details->last()->id_limbah ?? null,
                             'total_pickup' => $totalPickup,
                             'sales' => $totalSales,
                         ]);

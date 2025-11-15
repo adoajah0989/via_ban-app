@@ -19,9 +19,11 @@ class LimbahForm
                     ->required()
                     ->maxLength(255),
                TextInput::make('harga')
-                    ->label('Harga')
-                    ->required()
-                    ->maxLength(50),
+                    ->label('Harga Default (fallback)')
+                    ->helperText('Harga per wilayah dapat diatur lewat menu Harga Wilayah.')
+                    ->numeric()
+                    ->minValue(0)
+                    ->required(),
                 TextInput::make('kode_limbah')
                     ->label('Kode Limbah')
                     ->required()

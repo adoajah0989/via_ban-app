@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('nama_toko');
             $table->string('kode_toko')->unique();
             $table->string('alamat');
-            $table->string('kode_wilayah')->index('tb_toko_fk4');
+            $table->string('kode_wilayah', 10)->index('tb_toko_fk4');
             $table->string('nomor_telepon', 20)->nullable();
             $table->timestamps();
         });
