@@ -43,6 +43,7 @@ class PengepulReportService
             ->where('status', 'selesai')
             ->whereBetween('tanggal', [$start->toDateString(), $end->toDateString()])
             ->orderBy('tanggal')
+            ->orderBy('kode_transaksi')
             ->get();
 
         $rows = [];
@@ -61,6 +62,7 @@ class PengepulReportService
 
                 $rows[] = [
                     'tanggal' => Carbon::parse($trx->tanggal)->format('d M Y'),
+                    'kode_transaksi' => $trx->kode_transaksi ?? str_pad((string) $trx->id_transaksi, 8, '0', STR_PAD_LEFT),
                     'toko' => $trx->toko->nama_toko ?? '-',
                     'limbah' => $limbahNama,
                     'jumlah' => $detail->jumlah,
@@ -90,18 +92,27 @@ class PengepulReportService
         }
 
         $detailRows = '';
+        $lastKode = null;
+
         foreach ($rows as $row) {
+            $kode = $row['kode_transaksi'] ?? '';
+            $showHeader = $kode !== $lastKode;
+
             $detailRows .= '<tr>'
-                . '<td>' . htmlspecialchars($row['tanggal']) . '</td>'
-                . '<td>' . htmlspecialchars($row['toko']) . '</td>'
+                . '<td>' . ($showHeader ? htmlspecialchars($row['tanggal']) : '') . '</td>'
+                . '<td>' . ($showHeader ? htmlspecialchars($row['kode_transaksi']) : '') . '</td>'
+                . '<td>' . ($showHeader ? htmlspecialchars($row['toko']) : '') . '</td>'
                 . '<td>' . htmlspecialchars($row['limbah']) . '</td>'
                 . '<td class="right">' . htmlspecialchars((string) $row['jumlah']) . '</td>'
                 . '<td class="right">' . $currency($row['harga']) . '</td>'
                 . '<td class="right">' . $currency($row['subtotal']) . '</td>'
                 . '</tr>';
+
+            $lastKode = $kode;
         }
+
         if ($detailRows === '') {
-            $detailRows = '<tr><td colspan="6" style="padding:8px;border:1px solid #ccc;text-align:center;color:#666;">Tidak ada transaksi pada periode ini</td></tr>';
+            $detailRows = '<tr><td colspan="7" style="padding:8px;border:1px solid #ccc;text-align:center;color:#666;">Tidak ada transaksi pada periode ini</td></tr>';
         }
 
         $printedAt = htmlspecialchars(Carbon::now()->format('d M Y H:i'));
@@ -121,10 +132,10 @@ class PengepulReportService
             . $summaryRows
             . '</tbody></table>'
             . '<h2>Detail Transaksi</h2><table><thead><tr>'
-            . '<th>Tanggal</th><th>Toko</th><th>Limbah</th><th class="right">Jumlah</th><th class="right">Harga</th><th class="right">Subtotal</th>'
+            . '<th>Tanggal</th><th>ID Transaksi</th><th>Toko</th><th>Limbah</th><th class="right">Jumlah</th><th class="right">Harga</th><th class="right">Subtotal</th>'
             . '</tr></thead><tbody>'
             . $detailRows
-            . '</tbody><tfoot><tr><td colspan="5" class="right" style="font-weight:bold;">Grand Total</td>'
+            . '</tbody><tfoot><tr><td colspan="6" class="right" style="font-weight:bold;">Grand Total</td>'
             . '<td class="right" style="font-weight:bold;">' . $currency($grandTotal) . '</td></tr></tfoot></table>'
             . '<table class="signature" style="margin-top:48px;"><tr>'
             . '<td><div class="who">Pengepul</div><div class="line">Tanda Tangan</div></td>'

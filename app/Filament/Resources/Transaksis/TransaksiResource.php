@@ -78,6 +78,6 @@ class TransaksiResource extends Resource
     }
     public static function getGloballySearchableAttributes(): array
     {
-        return ['tanggal'];
+        return ['kode_transaksi', 'tanggal'];
     }
 }

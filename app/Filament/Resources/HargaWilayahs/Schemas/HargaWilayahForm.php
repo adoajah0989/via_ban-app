@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\HargaWilayahs\Schemas;
 
 use App\Models\tb_limbah;
+use App\Models\tb_pusat_toko;
 use App\Models\tb_wilayah;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -15,6 +16,14 @@ class HargaWilayahForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
+            Select::make('id_pusat')
+                ->label('Pusat Toko')
+                ->options(fn () => tb_pusat_toko::query()
+                        ->orderBy('nama_pusat')
+                        ->pluck('nama_pusat', 'id_pusat')
+                        ->toArray())
+                ->required()
+                ->searchable(),
             Select::make('kode_wilayah')
                 ->label('Wilayah')
                 ->options(fn () => tb_wilayah::query()
@@ -26,7 +35,8 @@ class HargaWilayahForm
 
             Select::make('id_limbah')
                 ->label('Jenis Limbah')
-                ->options(fn () => tb_limbah::query()
+                ->options(fn (callable $get) => tb_limbah::query()
+                        ->when($get('id_pusat'), fn ($q, $idPusat) => $q->where('id_pusat', $idPusat))
                         ->orderBy('nama_limbah')
                         ->pluck('nama_limbah', 'id_limbah')
                         ->toArray())

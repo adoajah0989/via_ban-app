@@ -15,6 +15,7 @@ class tb_toko extends Model
         $this->attributes['kode_wilayah'] = substr((string) $value, 0, 3);
     }
     protected $fillable = [
+        'id_pusat',
         'nama_toko',
         'kode_toko',
         'kode_wilayah',
@@ -28,5 +29,10 @@ class tb_toko extends Model
         if ($value) {
             return ucwords(strtoupper($value));
         }
+    }
+
+    public function pusat()
+    {
+        return $this->belongsTo(tb_pusat_toko::class, 'id_pusat', 'id_pusat');
     }
 }

@@ -22,7 +22,6 @@ return new class extends Migration
             $table->string('status', 10);
             $table->timestamp('created_at')->nullable()->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->nullable()->useCurrent();
-            $table->integer('total_transaksi')->default(0);
         });
     }
 

@@ -10,11 +10,11 @@ class TransaksiDetailService
      * @param  array<int|string, mixed>  $rawQuantities
      * @return array{total_pickup:int,total_sales:int,rows:array<int,array{id_limbah:int,jumlah:int,harga_saat_transaksi:int}>}
      */
-    public static function summarize(array $rawQuantities, ?string $kodeWilayah): array
+    public static function summarize(array $rawQuantities, ?string $kodeWilayah, ?int $idPusat = null): array
     {
         $quantities = array_filter($rawQuantities, fn ($q) => (int) $q > 0);
         $ids = array_map('intval', array_keys($quantities));
-        $prices = HargaWilayahResolver::getFor($ids, $kodeWilayah);
+        $prices = HargaWilayahResolver::getFor($ids, $kodeWilayah, $idPusat);
 
         $totalPickup = 0;
         $totalSales = 0;
@@ -32,6 +32,7 @@ class TransaksiDetailService
                 'id_limbah' => $id,
                 'jumlah' => $jumlah,
                 'harga_saat_transaksi' => $harga,
+                'subtotal' => $jumlah * $harga,
             ];
         }
 

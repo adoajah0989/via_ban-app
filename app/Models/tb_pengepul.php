@@ -15,4 +15,10 @@ class tb_pengepul extends Model
         'nomor_telepon',
         'nomor_kendaraan'
     ];
+
+    public function telegramAccount()
+    {
+        return $this->hasOne(tb_telegram_user::class, 'id_pengepul', 'id_pengepul')
+            ->where('role', 'pengepul');
+    }
 }

@@ -21,22 +21,40 @@ class ListTransaksis extends ListRecords
                 ->modalHeading('Transaksi Baru')
                 ->modalWidth('7xl')
                 ->mutateFormDataUsing(function (array $data): array {
-                    $kodeWilayah = tb_toko::whereKey($data['id_toko'] ?? null)->value('kode_wilayah');
-                    $summary = TransaksiDetailService::summarize((array) ($data['limbah_qty'] ?? []), $kodeWilayah);
+                    $toko = null;
+                    $kodeWilayah = null;
+                    $idPusat = null;
+                    if (! empty($data['id_toko'])) {
+                        $toko = tb_toko::with('pusat')->find((int) $data['id_toko']);
+                        $kodeWilayah = $toko?->kode_wilayah;
+                        $idPusat = $toko?->id_pusat;
+                    }
+                    $summary = TransaksiDetailService::summarize((array) ($data['limbah_qty'] ?? []), $kodeWilayah, $idPusat);
 
                     $data['total_pickup'] = $summary['total_pickup'];
                     $data['sales'] = $summary['total_sales'];
+                    $data['kode_wilayah'] = $kodeWilayah;
                     return $data;
                 })
                 ->using(function (array $data) {
-                    $kodeWilayah = tb_toko::whereKey($data['id_toko'] ?? null)->value('kode_wilayah');
-                    $summary = TransaksiDetailService::summarize((array) ($data['limbah_qty'] ?? []), $kodeWilayah);
+                    $toko = null;
+                    $kodeWilayah = $data['kode_wilayah'] ?? null;
+                    $idPusat = null;
+                    if (! empty($data['id_toko'])) {
+                        $toko = tb_toko::with('pusat')->find((int) $data['id_toko']);
+                        $kodeWilayah = $kodeWilayah ?? $toko?->kode_wilayah;
+                        $idPusat = $toko?->id_pusat;
+                    }
+                    $summary = TransaksiDetailService::summarize((array) ($data['limbah_qty'] ?? []), $kodeWilayah, $idPusat);
 
-                    unset($data['details']);
+                    foreach (['details', 'limbah_qty'] as $helperField) {
+                        unset($data[$helperField]);
+                    }
 
                     $record = Transaksi::create(array_merge($data, [
                         'total_pickup' => $summary['total_pickup'],
                         'sales' => $summary['total_sales'],
+                        'kode_wilayah' => $kodeWilayah,
                     ]));
 
                     if (! empty($summary['rows'])) {

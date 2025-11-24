@@ -6,28 +6,39 @@ use App\Filament\Resources\Transaksis\TransaksiResource;
 use App\Models\tb_toko;
 use App\Services\TransaksiDetailService;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Arr;
 
 class CreateTransaksi extends CreateRecord
 {
     protected static string $resource = TransaksiResource::class;
+    protected array $limbahQuantities = [];
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $kodeWilayah = $this->resolveKodeWilayah((int) ($data['id_toko'] ?? 0));
-        $summary = TransaksiDetailService::summarize((array) ($data['limbah_qty'] ?? []), $kodeWilayah);
+        $this->limbahQuantities = (array) ($data['limbah_qty'] ?? []);
+
+        $toko = null;
+        $kodeWilayah = null;
+        $idPusat = null;
+        if (! empty($data['id_toko'])) {
+            $toko = tb_toko::with('pusat')->find((int) $data['id_toko']);
+            $kodeWilayah = $toko?->kode_wilayah;
+            $idPusat = $toko?->id_pusat;
+        }
+        $summary = TransaksiDetailService::summarize($this->limbahQuantities, $kodeWilayah, $idPusat);
 
         $data['total_pickup'] = $summary['total_pickup'];
         $data['sales'] = $summary['total_sales'];
-        unset($data['details']);
-
-        return $data;
+        $data['kode_wilayah'] = $kodeWilayah;
+        return Arr::except($data, ['limbah_qty', 'details']);
     }
 
     protected function afterCreate(): void
     {
         // Simpan detail dari limbah_qty
-        $this->syncDetailsFromQuantities((array) ($this->data['limbah_qty'] ?? []));
+        $this->syncDetailsFromQuantities($this->limbahQuantities);
         $this->recomputeTotals();
+        $this->limbahQuantities = [];
     }
 
     private function recomputeTotals(): void

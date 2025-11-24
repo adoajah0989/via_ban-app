@@ -26,6 +26,10 @@ class PengepulsTable
                 TextColumn::make('nama')->label('Nama')->searchable()->sortable(),
                 TextColumn::make('nomor_telepon')->label('Nomor Telepon')->searchable()->sortable()->wrap(),
                 TextColumn::make('nomor_kendaraan')->label('Nomor Kendaraan')->searchable()->sortable()->wrap(),
+                TextColumn::make('telegramAccount.telegram_user_id')
+                    ->label('Telegram ID')
+                    ->toggleable()
+                    ->searchable(),
             ])
             ->filters([])
             ->recordActions([

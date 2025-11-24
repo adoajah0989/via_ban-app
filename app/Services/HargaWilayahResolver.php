@@ -12,9 +12,10 @@ class HargaWilayahResolver
      *
      * @param  array<int, int|string>  $limbahIds
      * @param  string|null  $kodeWilayah
+     * @param  int|null  $idPusat
      * @return array<int, int>
      */
-    public static function getFor(array $limbahIds, ?string $kodeWilayah): array
+    public static function getFor(array $limbahIds, ?string $kodeWilayah, ?int $idPusat = null): array
     {
         $ids = array_values(array_unique(array_map('intval', $limbahIds)));
         if (empty($ids)) {
@@ -22,6 +23,7 @@ class HargaWilayahResolver
         }
 
         $prices = tb_limbah::whereIn('id_limbah', $ids)
+            ->when($idPusat, fn ($q, $pid) => $q->where('id_pusat', $pid))
             ->pluck('harga', 'id_limbah')
             ->map(fn ($price) => (int) $price)
             ->toArray();

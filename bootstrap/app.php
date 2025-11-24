@@ -11,7 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Trust all proxies (including ngrok) so that
+        // Laravel dapat mengenali skema HTTPS dari header
+        // X-Forwarded-Proto dan tidak menghasilkan URL http
+        // saat diakses melalui tunnel HTTPS.
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

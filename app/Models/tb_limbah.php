@@ -10,8 +10,14 @@ class tb_limbah extends Model
     protected $primaryKey = 'id_limbah';
     public $timestamps = false;
     protected $fillable = [
+        'id_pusat',
         'nama_limbah',
         'harga',
         'kode_limbah'
     ];
+
+    public function pusat()
+    {
+        return $this->belongsTo(tb_pusat_toko::class, 'id_pusat', 'id_pusat');
+    }
 }

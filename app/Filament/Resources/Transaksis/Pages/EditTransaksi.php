@@ -9,10 +9,12 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Arr;
 
 class EditTransaksi extends EditRecord
 {
     protected static string $resource = TransaksiResource::class;
+    protected array $limbahQuantities = [];
 
     protected function getHeaderActions(): array
     {
@@ -24,21 +26,26 @@ class EditTransaksi extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $kodeWilayah = $this->resolveKodeWilayah((int) ($data['id_toko'] ?? $this->record->id_toko));
-        $summary = TransaksiDetailService::summarize((array) ($data['limbah_qty'] ?? []), $kodeWilayah);
+        $this->limbahQuantities = (array) ($data['limbah_qty'] ?? []);
+
+        $tokoId = (int) ($data['id_toko'] ?? $this->record->id_toko);
+        $toko = tb_toko::with('pusat')->find($tokoId);
+        $kodeWilayah = $toko?->kode_wilayah;
+        $idPusat = $toko?->id_pusat;
+        $summary = TransaksiDetailService::summarize($this->limbahQuantities, $kodeWilayah, $idPusat);
 
         $data['total_pickup'] = $summary['total_pickup'];
         $data['sales'] = $summary['total_sales'];
-        unset($data['details']);
-
-        return $data;
+        $data['kode_wilayah']  = $kodeWilayah;
+        return Arr::except($data, ['limbah_qty', 'details']);
     }
 
     protected function afterSave(): void
     {
         // Simpan detail dari limbah_qty
-        $this->syncDetailsFromQuantities((array) ($this->data['limbah_qty'] ?? []));
+        $this->syncDetailsFromQuantities($this->limbahQuantities);
         $this->recomputeTotals();
+        $this->limbahQuantities = [];
     }
 
     private function recomputeTotals(): void
@@ -73,7 +80,7 @@ class EditTransaksi extends EditRecord
 
     protected function getSaveFormAction(): Action
     {
-        return Action::make('save')
+        return parent::getSaveFormAction()
             ->label('Simpan Perubahan');
     }
     protected function getCancelFormAction(): Action

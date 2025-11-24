@@ -7,6 +7,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
 use Livewire\Attributes\Reactive;
 use App\Models\tb_wilayah;
+use App\Models\tb_pusat_toko;
 
 class tb_tokoForm
 {
@@ -14,6 +15,14 @@ class tb_tokoForm
     {
         return $schema
             ->components([
+                Select::make('id_pusat')
+                    ->label('Pusat Toko')
+                    ->required()
+                    ->options(fn () => tb_pusat_toko::query()
+                        ->orderBy('nama_pusat')
+                        ->pluck('nama_pusat', 'id_pusat')
+                        ->toArray())
+                    ->searchable(),
                 TextInput::make('nama_toko')
                     ->label('Nama Toko')
                     ->required()
@@ -28,6 +37,10 @@ class tb_tokoForm
                             })
                             ->toArray()
                     )
+                    ->rules(['exists:tb_wilayah,kode_wilayah'])
+                    ->validationMessages([
+                        'exists' => 'Kode wilayah ini belum terdaftar. Tambahkan dulu di menu Wilayah.',
+                    ])
                     ->reactive() // biar bisa trigger perubahan
                     ->afterStateUpdated(function ($state, callable $set) {
                         // reset kode_toko saat ganti wilayah
