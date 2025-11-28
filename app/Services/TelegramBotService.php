@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
-
+use Illuminate\Support\Facades\Log;
 class TelegramBotService
 {
     /**
@@ -26,7 +26,6 @@ class TelegramBotService
             $telegram->sendMessage([
                 'chat_id' => $chatId,
                 'text' => $text,
-                'parse_mode' => 'Markdown',
             ]);
 
             return;
@@ -38,8 +37,49 @@ class TelegramBotService
         Http::asForm()->post($url, [
             'chat_id' => $chatId,
             'text' => $text,
-            'parse_mode' => 'Markdown',
         ])->throw();
+    }
+
+    /**
+     * Kirim file PDF nota transaksi ke chat tertentu.
+     */
+    public static function sendDocumentFromPath(int $chatId, string $path, string $caption = ''): void
+    {
+        $token = config('services.telegram.bot_token');
+        if (! $token || ! is_file($path)) {
+            return;
+        }
+
+        $filename = basename($path);
+
+        try {
+            if (class_exists(\Telegram\Bot\Api::class)) {
+                $telegram = new \Telegram\Bot\Api($token);
+                $telegram->sendDocument([
+                    'chat_id' => $chatId,
+                    'document' => fopen($path, 'rb'),
+                    'caption' => $caption,
+                ]);
+
+                return;
+            }
+
+            $url = "https://api.telegram.org/bot{$token}/sendDocument";
+
+            Http::attach('document', fopen($path, 'rb'), $filename)
+                ->asMultipart()
+                ->post($url, [
+                    'chat_id' => $chatId,
+                    'caption' => $caption,
+                ])
+                ->throw();
+        } catch (\Throwable $e) {
+            Log::error('telegram:sendDocument-failed', [
+                'chat_id' => $chatId,
+                'path' => $path,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     public static function sendPengepulMainMenu(int $chatId): void
@@ -52,7 +92,7 @@ class TelegramBotService
                     ['text' => '📊 Ringkasan', 'callback_data' => 'pengepul_menu_summary'],
                 ],
                 [
-                    ['text' => '➕ Tambah Data', 'callback_data' => 'pengepul_menu_add'],
+                    ['text' => '🧾 Menu Transaksi', 'callback_data' => 'pengepul_menu_transaksi'],
                 ],
             ],
         ];
@@ -75,7 +115,46 @@ class TelegramBotService
         self::sendMessageWithKeyboard($chatId, $text, $keyboard);
     }
 
-    protected static function sendMessageWithKeyboard(int $chatId, string $text, array $keyboard): void
+    public static function sendPengepulTransaksiMenu(int $chatId): void
+    {
+        $text = "Menu Transaksi:\nSilakan pilih tindakan:";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '➕ Input Data', 'callback_data' => 'pengepul_trx_add'],
+                ],
+                [
+                    ['text' => '✏️ Edit Data (pending)', 'callback_data' => 'pengepul_trx_edit'],
+                ],
+                [
+                    ['text' => '🗑 Hapus Data (pending)', 'callback_data' => 'pengepul_trx_delete'],
+                ],
+            ],
+        ];
+
+        self::sendMessageWithKeyboard($chatId, $text, $keyboard);
+    }
+
+    public static function sendPengepulInputModeMenu(int $chatId): void
+    {
+        $text = "Input data transaksi baru.\nPilih jenis input:";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => 'Real-time (hari ini)', 'callback_data' => 'pengepul_trx_mode_realtime'],
+                ],
+                [
+                    ['text' => 'Pilih tanggal', 'callback_data' => 'pengepul_trx_mode_manual'],
+                ],
+            ],
+        ];
+
+        self::sendMessageWithKeyboard($chatId, $text, $keyboard);
+    }
+
+    public static function sendMessageWithKeyboard(int $chatId, string $text, array $keyboard): void
     {
         $token = config('services.telegram.bot_token');
         if (! $token) {
@@ -85,7 +164,6 @@ class TelegramBotService
         $payload = [
             'chat_id' => $chatId,
             'text' => $text,
-            'parse_mode' => 'Markdown',
             'reply_markup' => json_encode($keyboard),
         ];
 

@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\detail_transaksi;
 use Carbon\Carbon;
+use App\Services\TransaksiNotificationService;
 
 class tb_transaksi extends Model
 {
@@ -38,9 +39,10 @@ class tb_transaksi extends Model
 
                 $prefix = $date->format('ymd'); // YYMMDD
 
+                // Hitung urutan transaksi pada tanggal tersebut (semua toko),
+                // supaya kode_transaksi tetap unik per hari.
                 $sequence = (int) self::query()
                     ->whereDate('tanggal', $date->toDateString())
-                    ->where('id_toko', $model->id_toko)
                     ->count() + 1;
 
                 // Batasi 2 digit (01-99) untuk menjaga panjang 8 karakter.
