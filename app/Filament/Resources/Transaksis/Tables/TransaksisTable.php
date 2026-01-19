@@ -30,15 +30,27 @@ class TransaksisTable
                 TextColumn::make('toko.nama_toko')->label('Toko')->searchable()->sortable(),
                 TextColumn::make('pengepul.nama')->label('Pengepul')->searchable(),
                 TextColumn::make('sales')->label('Total')->money('IDR', true)->sortable(),
-                SelectColumn::make('status')
-
+                TextColumn::make('status')
                     ->label('Status')
-                    ->options([
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'pending' => 'warning',
+                        'selesai' => 'success',
+                        'batal' => 'danger',
+                        default => 'gray',
+                    })
+                    ->icon(fn (string $state): string => match ($state) {
+                        'pending' => 'heroicon-o-clock',
+                        'selesai' => 'heroicon-o-check-circle',
+                        'batal' => 'heroicon-o-x-circle',
+                        default => 'heroicon-o-question-mark-circle',
+                    })
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
                         'pending' => 'Pending',
                         'selesai' => 'Selesai',
-                        'batal'   => 'Batal',
-                    ])
-                    ->selectablePlaceholder(false)
+                        'batal' => 'Batal',
+                        default => $state,
+                    })
                     ->sortable(),
 
             ])
@@ -47,116 +59,220 @@ class TransaksisTable
                 //
             ])
             ->recordActions([
-                Action::make('edit')
-                    ->fillForm(
-                        fn(Transaksi $record) => [
-                            'details' => $record->details()
+                
+                \Filament\Actions\ActionGroup::make([
+                    // Tombol Lihat Detail
+                    Action::make('lihat_detail')
+                        ->label('Lihat Detail')
+                        ->icon('heroicon-o-eye')
+                        ->color('gray')
+                        ->modalHeading(fn(Transaksi $record) => "Detail Transaksi: {$record->kode_transaksi}")
+                        ->modalWidth('2xl')
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Tutup')
+                        ->modalContent(function (Transaksi $record) {
+                            $record->loadMissing(['toko', 'pengepul', 'details.limbah']);
+                            return view('filament.transaksi-detail', ['record' => $record]);
+                        }),
 
-                                ->with('limbah')
-                                ->get()
-                                ->map(fn($d) => [
-                                    'id_detail' => $d->id_detail,
-                                    'nama_limbah' => $d->limbah->nama_limbah ?? '-',
-                                    'jumlah' => $d->jumlah,
-                                    'harga_saat_transaksi' => 'Rp ' . $d->harga_saat_transaksi,
-                                    'subtotal' => 'Rp ' . ((float) ($d->jumlah ?? 0) * (float) ($d->harga_saat_transaksi ?? 0)),
-                                ])->toArray(),
-                        ]
-                    )
-                    ->label('edit')
-                    ->icon('heroicon-o-pencil')
-                    ->color('primary')
-                    ->modalHeading('Detail Transaksi - Jumlah Limbah')
-                    ->modalWidth('lg')
-                    ->schema([
-                        // Daftar detail limbah pada transaksi
-                        Repeater::make('details')
-                            ->schema([
-                                TextInput::make('id_detail')->hidden(),
-                                Select::make('nama_limbah')
-                                    ->label('Jenis Limbah')
-                                    ->options(fn() => Limbah::query()->orderBy('nama_limbah')->pluck('nama_limbah', 'nama_limbah'))
-                                    ->required()
-                                    ->distinct(),
+                    // Tombol Edit
+                    Action::make('edit')
+                        ->fillForm(
+                            fn(Transaksi $record) => [
+                                'details' => $record->details()
+                                    ->with('limbah')
+                                    ->get()
+                                    ->map(fn($d) => [
+                                        'id_detail' => $d->id_detail,
+                                        'nama_limbah' => $d->limbah->nama_limbah ?? '-',
+                                        'jumlah' => $d->jumlah,
+                                        'harga_saat_transaksi' => 'Rp ' . $d->harga_saat_transaksi,
+                                        'subtotal' => 'Rp ' . ((float) ($d->jumlah ?? 0) * (float) ($d->harga_saat_transaksi ?? 0)),
+                                    ])->toArray(),
+                            ]
+                        )
+                        ->label('Edit Transaksi')
+                        ->icon('heroicon-o-pencil')
+                        ->color('primary')
+                        ->modalHeading('Detail Transaksi - Jumlah Limbah')
+                        ->modalWidth('lg')
+                        ->schema([
+                            Repeater::make('details')
+                                ->schema([
+                                    TextInput::make('id_detail')->hidden(),
+                                    Select::make('nama_limbah')
+                                        ->label('Limbah')
+                                        ->options(fn() => Limbah::query()->orderBy('nama_limbah')->pluck('nama_limbah', 'nama_limbah'))
+                                        ->required()
+                                        ->distinct(),
 
-                                TextInput::make('jumlah')
-                                    ->label('Jumlah')
-                                    ->numeric()
-                                    ->required(),
-                                TextInput::make('harga_saat_transaksi')
-                                    ->label('Harga aktual')
-                                    ->disabled(),
-                                TextInput::make('subtotal')
-                                    ->label('Subtotal')
-                                    ->disabled(),
-                            ])
-                            ->columns(4)
+                                    TextInput::make('jumlah')
+                                        ->label('Jumlah')
+                                        ->numeric()
+                                        ->required(),
+                                    TextInput::make('harga_saat_transaksi')
+                                        ->label('Harga aktual')
+                                        ->disabled(),
+                                    TextInput::make('subtotal')
+                                        ->label('Subtotal')
+                                        ->disabled(),
+                                ])
+                                ->columns(4)
+                                ->required(),
+                        ])
+                        ->action(function (array $data, Transaksi $record): void {
+                            $record->loadMissing('toko');
+                            $kodeWilayah = $record->toko->kode_wilayah ?? null;
+                            $idPusat = $record->toko->id_pusat ?? null;
 
-                            ->required(),
-                    ])
-                    ->action(function (array $data, Transaksi $record): void {
-                        $record->loadMissing('toko');
-                        $kodeWilayah = $record->toko->kode_wilayah ?? null;
-                        $idPusat = $record->toko->id_pusat ?? null;
-
-                        // Bangun ulang mapping id_limbah => jumlah dari data modal
-                        $quantities = [];
-                        foreach ($data['details'] ?? [] as $detail) {
-                            $nama = $detail['nama_limbah'] ?? null;
-                            if (! $nama) {
-                                continue;
+                            $quantities = [];
+                            foreach ($data['details'] ?? [] as $detail) {
+                                $nama = $detail['nama_limbah'] ?? null;
+                                if (! $nama) {
+                                    continue;
+                                }
+                                $idLimbah = Limbah::where('nama_limbah', $nama)->value('id_limbah');
+                                if (! $idLimbah) {
+                                    continue;
+                                }
+                                $jumlah = (int) ($detail['jumlah'] ?? 0);
+                                if ($jumlah <= 0) {
+                                    continue;
+                                }
+                                $quantities[(int) $idLimbah] = $jumlah;
                             }
-                            $idLimbah = Limbah::where('nama_limbah', $nama)->value('id_limbah');
-                            if (! $idLimbah) {
-                                continue;
+
+                            $prices = HargaWilayahResolver::getFor(array_keys($quantities), $kodeWilayah, $idPusat);
+
+                            $rows = [];
+                            $totalPickup = 0;
+                            $totalSales = 0;
+
+                            foreach ($quantities as $idLimbah => $jumlah) {
+                                $harga = (int) ($prices[$idLimbah] ?? 0);
+                                $subtotal = $jumlah * $harga;
+
+                                $totalPickup += $jumlah;
+                                $totalSales += $subtotal;
+
+                                $rows[] = [
+                                    'id_limbah' => $idLimbah,
+                                    'jumlah' => $jumlah,
+                                    'harga_saat_transaksi' => $harga,
+                                    'subtotal' => $subtotal,
+                                ];
                             }
-                            $jumlah = (int) ($detail['jumlah'] ?? 0);
-                            if ($jumlah <= 0) {
-                                continue;
+
+                            $record->details()->delete();
+                            if (! empty($rows)) {
+                                $record->details()->createMany($rows);
                             }
-                            $quantities[(int) $idLimbah] = $jumlah;
-                        }
 
-                        // Hitung ulang harga & subtotal per limbah berdasarkan wilayah & pusat
-                        $prices = HargaWilayahResolver::getFor(array_keys($quantities), $kodeWilayah, $idPusat);
+                            $record->update([
+                                'total_pickup' => $totalPickup,
+                                'sales' => $totalSales,
+                            ]);
+                        }),
 
-                        $rows = [];
-                        $totalPickup = 0;
-                        $totalSales = 0;
+                    // Tombol Validasi - hanya muncul untuk transaksi pending
+                    Action::make('validasi')
+                        ->label('Validasi')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Konfirmasi Validasi')
+                        ->modalDescription(fn(Transaksi $record) => "Apakah Anda yakin ingin memvalidasi transaksi {$record->kode_transaksi}? Status akan diubah menjadi 'selesai' dan notifikasi akan dikirim ke pengepul.")
+                        ->modalSubmitActionLabel('Ya, Validasi')
+                        ->visible(fn(Transaksi $record) => $record->status === 'pending')
+                        ->action(function (Transaksi $record): void {
+                            $record->update(['status' => 'selesai']);
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('Transaksi Tervalidasi')
+                                ->body("Transaksi {$record->kode_transaksi} berhasil divalidasi. Notifikasi telah dikirim ke pengepul.")
+                                ->success()
+                                ->send();
+                        }),
 
-                        foreach ($quantities as $idLimbah => $jumlah) {
-                            $harga = (int) ($prices[$idLimbah] ?? 0);
-                            $subtotal = $jumlah * $harga;
-
-                            $totalPickup += $jumlah;
-                            $totalSales += $subtotal;
-
-                            $rows[] = [
-                                'id_limbah' => $idLimbah,
-                                'jumlah' => $jumlah,
-                                'harga_saat_transaksi' => $harga,
-                                'subtotal' => $subtotal,
-                            ];
-                        }
-
-                        // Sinkron ulang detail_transaksi dari hasil modal
-                        $record->details()->delete();
-                        if (! empty($rows)) {
-                            $record->details()->createMany($rows);
-                        }
-
-                        // Update total di tb_transaksi
-                        $record->update([
-                            'total_pickup' => $totalPickup,
-                            'sales' => $totalSales,
-                        ]);
-                    }),
-
+                    // Tombol Batalkan - hanya muncul untuk transaksi pending
+                    Action::make('batalkan')
+                        ->label('Batalkan')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Konfirmasi Pembatalan')
+                        ->modalDescription(fn(Transaksi $record) => "Apakah Anda yakin ingin membatalkan transaksi {$record->kode_transaksi}?")
+                        ->modalSubmitActionLabel('Ya, Batalkan')
+                        ->visible(fn(Transaksi $record) => $record->status === 'pending')
+                        ->action(function (Transaksi $record): void {
+                            $record->update(['status' => 'batal']);
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('Transaksi Dibatalkan')
+                                ->body("Transaksi {$record->kode_transaksi} telah dibatalkan.")
+                                ->warning()
+                                ->send();
+                        }),
+                ])
+                ->label('Aksi')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->color('gray')
+                ->button(),
 
 
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    \Filament\Actions\BulkAction::make('validasi_massal')
+                        ->label('Validasi Terpilih')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Konfirmasi Validasi Massal')
+                        ->modalDescription('Apakah Anda yakin ingin memvalidasi semua transaksi yang dipilih? Status akan diubah menjadi "selesai" dan notifikasi akan dikirim ke pengepul.')
+                        ->modalSubmitActionLabel('Ya, Validasi Semua')
+                        ->action(function (\Illuminate\Database\Eloquent\Collection $records): void {
+                            $validated = 0;
+                            foreach ($records as $record) {
+                                if ($record->status === 'pending') {
+                                    $record->update(['status' => 'selesai']);
+                                    $validated++;
+                                }
+                            }
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('Validasi Massal Berhasil')
+                                ->body("{$validated} transaksi berhasil divalidasi. Notifikasi telah dikirim ke pengepul terkait.")
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
+                    \Filament\Actions\BulkAction::make('batalkan_massal')
+                        ->label('Batalkan Terpilih')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Konfirmasi Pembatalan Massal')
+                        ->modalDescription('Apakah Anda yakin ingin membatalkan semua transaksi yang dipilih?')
+                        ->modalSubmitActionLabel('Ya, Batalkan Semua')
+                        ->action(function (\Illuminate\Database\Eloquent\Collection $records): void {
+                            $cancelled = 0;
+                            foreach ($records as $record) {
+                                if ($record->status === 'pending') {
+                                    $record->update(['status' => 'batal']);
+                                    $cancelled++;
+                                }
+                            }
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('Pembatalan Massal Berhasil')
+                                ->body("{$cancelled} transaksi berhasil dibatalkan.")
+                                ->warning()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
                     DeleteBulkAction::make(),
                 ]),
             ]);

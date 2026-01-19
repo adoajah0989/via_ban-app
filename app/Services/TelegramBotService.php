@@ -13,20 +13,26 @@ class TelegramBotService
      * sudah terpasang, service ini otomatis akan memakainya.
      * Jika tidak, fallback ke HTTP API biasa.
      */
-    public static function sendMessage(int $chatId, string $text): void
+    public static function sendMessage(int $chatId, string $text, bool $useMarkdown = true): void
     {
         $token = config('services.telegram.bot_token');
         if (! $token) {
             return;
         }
 
+        $params = [
+            'chat_id' => $chatId,
+            'text' => $text,
+        ];
+
+        if ($useMarkdown) {
+            $params['parse_mode'] = 'Markdown';
+        }
+
         // Jika SDK tersedia, gunakan SDK agar lebih ringkas.
         if (class_exists(\Telegram\Bot\Api::class)) {
             $telegram = new \Telegram\Bot\Api($token);
-            $telegram->sendMessage([
-                'chat_id' => $chatId,
-                'text' => $text,
-            ]);
+            $telegram->sendMessage($params);
 
             return;
         }
@@ -34,10 +40,7 @@ class TelegramBotService
         // Fallback: panggil HTTP API langsung.
         $url = "https://api.telegram.org/bot{$token}/sendMessage";
 
-        Http::asForm()->post($url, [
-            'chat_id' => $chatId,
-            'text' => $text,
-        ])->throw();
+        Http::asForm()->post($url, $params)->throw();
     }
 
     /**

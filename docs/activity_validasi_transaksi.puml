@@ -1,0 +1,38 @@
+@startuml activity_validasi_transaksi
+
+|Admin|
+start
+:Membuka Halaman Transaksi;
+
+|Sistem|
+:menampilkan daftar transaksi;
+
+|Admin|
+:memilih transaksi berstatus pending;
+
+|Sistem|
+:menampilkan detail transaksi;
+
+|Admin|
+:memeriksa data transaksi;
+
+if (Data Valid?) then (ya)
+  :klik tombol "Validasi";
+  |Sistem|
+  :mengubah status menjadi "selesai";
+  :mengirim notifikasi ke Telegram pengepul;
+  :menampilkan pesan berhasil;
+else (tidak)
+  |Admin|
+  :melakukan koreksi data;
+  :klik "simpan";
+  |Sistem|
+  :menyimpan perubahan data;
+endif
+
+|Sistem|
+:kembali ke daftar transaksi;
+
+stop
+
+@enduml

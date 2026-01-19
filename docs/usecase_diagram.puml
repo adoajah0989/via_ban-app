@@ -1,0 +1,231 @@
+@startuml usecase_diagram
+!theme cerulean-outline
+left to right direction
+
+skinparam packageBackgroundColor #FAFAFA
+skinparam usecase {
+    BackgroundColor #E3F2FD
+    BorderColor #1565C0
+}
+skinparam actor {
+    BackgroundColor #FFC107
+    BorderColor #FF8F00
+}
+
+title Diagram Use Case\nSistem Pengelolaan Limbah CV. VIA BAN\n(Berdasarkan Implementasi Saat Ini)
+
+' =====================================
+' ACTORS
+' =====================================
+actor Admin as admin #LightBlue
+actor "Pengepul\n(Bot Telegram)" as pengepul #LightGreen
+
+' =====================================
+' SISTEM UTAMA
+' =====================================
+rectangle "Sistem Pengelolaan Limbah\nCV. VIA BAN" {
+
+    ' -------------------------------------------------
+    ' APLIKASI WEB (FILAMENT ADMIN PANEL)
+    ' -------------------------------------------------
+    rectangle "Aplikasi Web" {
+        usecase "Login ke Sistem" as UC_LOGIN
+
+        usecase "Lihat Dashboard" as UC_DASHBOARD
+        
+        usecase "Kelola Transaksi" as UC_KELOLA_TRANSAKSI
+        usecase "Validasi Transaksi\n(Pending → Selesai)" as UC_VALIDASI_TRX
+        usecase "Lihat Detail Transaksi" as UC_LIHAT_DETAIL_TRX
+        
+        usecase "Kelola Data Pengepul" as UC_KELOLA_PENGEPUL
+        usecase "Kelola Data Toko" as UC_KELOLA_TOKO
+        usecase "Kelola Data Limbah" as UC_KELOLA_LIMBAH
+        usecase "Kelola Data Wilayah" as UC_KELOLA_WILAYAH
+        usecase "Kelola Harga Wilayah" as UC_KELOLA_HARGA
+        usecase "Kelola Pusat Toko" as UC_KELOLA_PUSAT
+
+        usecase "Kirim Laporan ke\nSemua Pengepul" as UC_KIRIM_LAPORAN
+
+        ' Manajemen Data (CRUD)
+        usecase "Tambah Data" as UC_TAMBAH
+        usecase "Ubah Data" as UC_UBAH
+        usecase "Hapus Data" as UC_HAPUS
+    }
+
+    ' -------------------------------------------------
+    ' BOT TELEGRAM
+    ' -------------------------------------------------
+    rectangle "Bot Telegram" {
+        usecase "Mulai Sesi Bot\n(/start)" as UC_START_BOT
+        
+        usecase "Lihat Ringkasan\nPengepul" as UC_RINGKASAN
+        
+        ' Input Transaksi - Multiple Entry Points
+        usecase "Input Transaksi\n(via Menu)" as UC_INPUT_TRX_MENU
+        usecase "Input Transaksi\n(via /trx)" as UC_INPUT_TRX_CMD
+        usecase "Input Transaksi\n(via Format TRX Langsung)" as UC_INPUT_TRX_DIRECT
+        
+        usecase "Parse Format TRX" as UC_PARSE_TRX
+        usecase "Pilih Toko\n(Kode Toko)" as UC_PILIH_TOKO
+        usecase "Ganti Toko" as UC_GANTI_TOKO
+        
+        usecase "Preview Transaksi" as UC_PREVIEW_TRX
+        usecase "Konfirmasi / Batal" as UC_KONFIRMASI
+        usecase "Generate Nota PDF" as UC_GENERATE_NOTA
+        
+        usecase "Edit Transaksi\n(Pending Only)" as UC_EDIT_TRX
+        usecase "Edit Tanggal" as UC_EDIT_TANGGAL
+        usecase "Edit Jumlah Limbah" as UC_EDIT_ITEMS
+
+        usecase "Terima Notifikasi\nVerifikasi" as UC_NOTIF_VERIF
+        
+        usecase "Lihat Format Input\n(/format_input)" as UC_FORMAT_HELP
+    }
+}
+
+' =====================================
+' ADMIN RELATIONSHIPS - APLIKASI WEB
+' =====================================
+admin --> UC_LOGIN
+admin --> UC_DASHBOARD
+admin --> UC_KELOLA_TRANSAKSI
+admin --> UC_KELOLA_PENGEPUL
+admin --> UC_KELOLA_TOKO
+admin --> UC_KELOLA_LIMBAH
+admin --> UC_KELOLA_WILAYAH
+admin --> UC_KELOLA_HARGA
+admin --> UC_KELOLA_PUSAT
+admin --> UC_KIRIM_LAPORAN
+
+' Kelola Transaksi extends
+UC_KELOLA_TRANSAKSI ..> UC_VALIDASI_TRX : <<extend>>
+UC_KELOLA_TRANSAKSI ..> UC_LIHAT_DETAIL_TRX : <<extend>>
+
+' CRUD extends untuk semua kelola data
+UC_KELOLA_PENGEPUL ..> UC_TAMBAH : <<extend>>
+UC_KELOLA_PENGEPUL ..> UC_UBAH : <<extend>>
+UC_KELOLA_PENGEPUL ..> UC_HAPUS : <<extend>>
+
+UC_KELOLA_TOKO ..> UC_TAMBAH : <<extend>>
+UC_KELOLA_TOKO ..> UC_UBAH : <<extend>>
+UC_KELOLA_TOKO ..> UC_HAPUS : <<extend>>
+
+UC_KELOLA_LIMBAH ..> UC_TAMBAH : <<extend>>
+UC_KELOLA_LIMBAH ..> UC_UBAH : <<extend>>
+UC_KELOLA_LIMBAH ..> UC_HAPUS : <<extend>>
+
+UC_KELOLA_WILAYAH ..> UC_TAMBAH : <<extend>>
+UC_KELOLA_WILAYAH ..> UC_UBAH : <<extend>>
+UC_KELOLA_WILAYAH ..> UC_HAPUS : <<extend>>
+
+UC_KELOLA_HARGA ..> UC_TAMBAH : <<extend>>
+UC_KELOLA_HARGA ..> UC_UBAH : <<extend>>
+UC_KELOLA_HARGA ..> UC_HAPUS : <<extend>>
+
+UC_KELOLA_PUSAT ..> UC_TAMBAH : <<extend>>
+UC_KELOLA_PUSAT ..> UC_UBAH : <<extend>>
+UC_KELOLA_PUSAT ..> UC_HAPUS : <<extend>>
+
+' Validasi trigger notifikasi
+UC_VALIDASI_TRX ..> UC_NOTIF_VERIF : <<trigger>>
+
+' =====================================
+' PENGEPUL RELATIONSHIPS - BOT TELEGRAM
+' =====================================
+' /start: entry point untuk navigasi menu
+pengepul --> UC_START_BOT
+UC_START_BOT ..> UC_RINGKASAN : <<extend>>
+UC_START_BOT ..> UC_INPUT_TRX_MENU : <<extend>>
+UC_START_BOT ..> UC_EDIT_TRX : <<extend>>
+
+' 3 Cara Input Transaksi (Entry Points Independen)
+pengepul --> UC_INPUT_TRX_MENU : via menu /start
+pengepul --> UC_INPUT_TRX_CMD : langsung /trx
+pengepul --> UC_INPUT_TRX_DIRECT : format TRX langsung
+
+' Semua entry point mengarah ke proses yang sama
+UC_INPUT_TRX_MENU ..> UC_PILIH_TOKO : <<include>>
+UC_INPUT_TRX_CMD ..> UC_PILIH_TOKO : <<include>>
+UC_INPUT_TRX_DIRECT ..> UC_PARSE_TRX : <<include>>
+
+UC_PILIH_TOKO ..> UC_PARSE_TRX : <<include>>
+UC_PILIH_TOKO ..> UC_GANTI_TOKO : <<extend>>
+UC_GANTI_TOKO ..> UC_PILIH_TOKO : <<include>>
+UC_PARSE_TRX ..> UC_PREVIEW_TRX : <<include>>
+UC_PREVIEW_TRX ..> UC_KONFIRMASI : <<include>>
+UC_KONFIRMASI ..> UC_GENERATE_NOTA : <<include>>
+
+' Edit Transaksi
+pengepul --> UC_EDIT_TRX
+UC_EDIT_TRX ..> UC_EDIT_TANGGAL : <<extend>>
+UC_EDIT_TRX ..> UC_EDIT_ITEMS : <<extend>>
+UC_EDIT_TRX ..> UC_PREVIEW_TRX : <<include>>
+
+' Pengepul menerima notifikasi & bantuan
+pengepul --> UC_NOTIF_VERIF
+pengepul --> UC_FORMAT_HELP
+
+' =====================================
+' NOTES
+' =====================================
+note right of UC_INPUT_TRX_DIRECT
+  **Format TRX Langsung (tanpa /start):**
+  TRX <KODE_TOKO> <MM-DD> <ID:JUMLAH>...
+  
+  Contoh:
+  TRX JKT003 11-28 1:10 2:5 3:0
+  
+  Pengepul bisa mengirim
+  format ini kapan saja.
+end note
+
+note right of UC_INPUT_TRX_CMD
+  Command **/trx** memulai
+  alur guided:
+  
+  1. Bot minta kode toko
+  2. Bot tunjukkan daftar limbah
+  3. User kirim format TRX
+end note
+
+note left of UC_START_BOT
+  **/start** tidak wajib 
+  untuk input data.
+  
+  Hanya untuk:
+  - Lihat menu utama
+  - Registrasi akun baru
+end note
+
+note right of UC_GANTI_TOKO
+  Tombol **🔄 Ganti Toko**
+  muncul saat daftar limbah
+  ditampilkan.
+  
+  Pengepul bisa ganti toko
+  tanpa harus /start ulang.
+end note
+
+note right of UC_EDIT_TRX
+  Hanya transaksi dengan 
+  status "pending" yang 
+  dapat diedit oleh pengepul
+end note
+
+note left of UC_VALIDASI_TRX
+  Admin memvalidasi transaksi
+  melalui Filament Panel.
+  Status: pending → selesai
+  
+  Otomatis kirim notifikasi
+  ke pengepul via Telegram.
+end note
+
+note bottom of UC_KIRIM_LAPORAN
+  Command: /kirim_laporan
+  Mengirim laporan bulanan
+  ke semua pengepul aktif
+  dalam format PDF.
+end note
+
+@enduml

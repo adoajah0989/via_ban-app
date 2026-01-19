@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERD - Sistem Pengelolaan Limbah Ban</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #fff;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+            color: #fff;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 40px;
+            font-size: 14px;
+        }
+        
+        .erd-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .entity {
+            background: #1e1e2e;
+            border-radius: 12px;
+            overflow: hidden;
+            min-width: 220px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+        }
+        
+        .entity-header {
+            padding: 12px 16px;
+            font-weight: 600;
+            text-align: center;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .entity-header.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .entity-header.secondary { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .entity-header.tertiary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .entity-header.quaternary { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .entity-header.quinary { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        
+        .entity-body {
+            padding: 12px 0;
+        }
+        
+        .attribute {
+            padding: 6px 16px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #2a2a3a;
+        }
+        
+        .attribute:last-child {
+            border-bottom: none;
+        }
+        
+        .attr-icon {
+            width: 16px;
+            text-align: center;
+            font-size: 10px;
+        }
+        
+        .attr-icon.pk { color: #fbbf24; }
+        .attr-icon.fk { color: #60a5fa; }
+        .attr-icon.field { color: #6b7280; }
+        
+        .attr-name {
+            flex: 1;
+            color: #e5e5e5;
+        }
+        
+        .attr-name.pk { color: #fbbf24; font-weight: 600; }
+        .attr-name.fk { color: #60a5fa; }
+        
+        .attr-type {
+            color: #6b7280;
+            font-size: 10px;
+            font-style: italic;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .legend-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+        
+        .legend-icon.pk { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .legend-icon.fk { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        
+        .relations {
+            margin-top: 40px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .relations h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #888;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .relation-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        
+        .relation-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .relation-arrow {
+            color: #60a5fa;
+            font-weight: bold;
+        }
+        
+        .relation-type {
+            background: rgba(96, 165, 250, 0.2);
+            color: #60a5fa;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-left: auto;
+        }
+
+        .section-title {
+            text-align: center;
+            margin: 40px 0 20px;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Entity Relationship Diagram (ERD)</h1>
+    <p class="subtitle">Sistem Pengelolaan Limbah Ban - Via Ban App</p>
+    
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-icon pk">🔑</div>
+            <span>Primary Key (PK)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-icon fk">🔗</div>
+            <span>Foreign Key (FK)</span>
+        </div>
+    </div>
+    
+    <p class="section-title">Entitas Utama</p>
+    
+    <div class="erd-container">
+        <!-- tb_transaksi -->
+        <div class="entity">
+            <div class="entity-header primary">tb_transaksi</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">id_transaksi</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">id_toko</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">id_pengepul</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">kode_transaksi</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">tanggal</span>
+                    <span class="attr-type">DATE</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">sales</span>
+                    <span class="attr-type">DECIMAL</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">total_pickup</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">status</span>
+                    <span class="attr-type">ENUM</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">created_at</span>
+                    <span class="attr-type">TIMESTAMP</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">updated_at</span>
+                    <span class="attr-type">TIMESTAMP</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- detail_transaksi -->
+        <div class="entity">
+            <div class="entity-header primary">detail_transaksi</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">id_detail</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">id_transaksi</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">id_limbah</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">jumlah</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">harga_saat_transaksi</span>
+                    <span class="attr-type">DECIMAL</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- tb_toko -->
+        <div class="entity">
+            <div class="entity-header secondary">tb_toko</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">id_toko</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">id_pusat</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">nama_toko</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">kode_toko</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">kode_wilayah</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">alamat</span>
+                    <span class="attr-type">TEXT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">nomor_telepon</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- tb_pengepul -->
+        <div class="entity">
+            <div class="entity-header secondary">tb_pengepul</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">id_pengepul</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">nama</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">nomor_telepon</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">nomor_kendaraan</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- tb_limbah -->
+        <div class="entity">
+            <div class="entity-header tertiary">tb_limbah</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">id_limbah</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">id_pusat</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">nama_limbah</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">kode_limbah</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">harga</span>
+                    <span class="attr-type">DECIMAL</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- tb_wilayah -->
+        <div class="entity">
+            <div class="entity-header quaternary">tb_wilayah</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">kode_wilayah</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">nama_wilayah</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- tb_pusat_toko -->
+        <div class="entity">
+            <div class="entity-header quaternary">tb_pusat_toko</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">id_pusat</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">nama_pusat</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">kode_pusat</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">kontak</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- tb_harga_wilayah -->
+        <div class="entity">
+            <div class="entity-header tertiary">tb_harga_wilayah</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">id</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">id_limbah</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">kode_wilayah</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">harga</span>
+                    <span class="attr-type">DECIMAL</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- users -->
+        <div class="entity">
+            <div class="entity-header quinary">users</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">id</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">name</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">email</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">password</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- tb_telegram_user -->
+        <div class="entity">
+            <div class="entity-header quinary">tb_telegram_user</div>
+            <div class="entity-body">
+                <div class="attribute">
+                    <span class="attr-icon pk">🔑</span>
+                    <span class="attr-name pk">id</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">id_pengepul</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon fk">🔗</span>
+                    <span class="attr-name fk">id_user</span>
+                    <span class="attr-type">INT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">telegram_user_id</span>
+                    <span class="attr-type">BIGINT</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">username</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">phone</span>
+                    <span class="attr-type">VARCHAR</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">role</span>
+                    <span class="attr-type">ENUM</span>
+                </div>
+                <div class="attribute">
+                    <span class="attr-icon field">○</span>
+                    <span class="attr-name">is_active</span>
+                    <span class="attr-type">BOOLEAN</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Relasi -->
+    <div class="relations">
+        <h3>Relasi Antar Entitas</h3>
+        <div class="relation-list">
+            <div class="relation-item">
+                <strong>tb_transaksi</strong>
+                <span class="relation-arrow">→</span>
+                <span>tb_toko</span>
+                <span class="relation-type">Many-to-One</span>
+            </div>
+            <div class="relation-item">
+                <strong>tb_transaksi</strong>
+                <span class="relation-arrow">→</span>
+                <span>tb_pengepul</span>
+                <span class="relation-type">Many-to-One</span>
+            </div>
+            <div class="relation-item">
+                <strong>tb_transaksi</strong>
+                <span class="relation-arrow">→</span>
+                <span>detail_transaksi</span>
+                <span class="relation-type">One-to-Many</span>
+            </div>
+            <div class="relation-item">
+                <strong>detail_transaksi</strong>
+                <span class="relation-arrow">→</span>
+                <span>tb_limbah</span>
+                <span class="relation-type">Many-to-One</span>
+            </div>
+            <div class="relation-item">
+                <strong>tb_toko</strong>
+                <span class="relation-arrow">→</span>
+                <span>tb_pusat_toko</span>
+                <span class="relation-type">Many-to-One</span>
+            </div>
+            <div class="relation-item">
+                <strong>tb_limbah</strong>
+                <span class="relation-arrow">→</span>
+                <span>tb_pusat_toko</span>
+                <span class="relation-type">Many-to-One</span>
+            </div>
+            <div class="relation-item">
+                <strong>tb_harga_wilayah</strong>
+                <span class="relation-arrow">→</span>
+                <span>tb_limbah</span>
+                <span class="relation-type">Many-to-One</span>
+            </div>
+            <div class="relation-item">
+                <strong>tb_harga_wilayah</strong>
+                <span class="relation-arrow">→</span>
+                <span>tb_wilayah</span>
+                <span class="relation-type">Many-to-One</span>
+            </div>
+            <div class="relation-item">
+                <strong>tb_telegram_user</strong>
+                <span class="relation-arrow">→</span>
+                <span>tb_pengepul</span>
+                <span class="relation-type">Many-to-One</span>
+            </div>
+            <div class="relation-item">
+                <strong>tb_telegram_user</strong>
+                <span class="relation-arrow">→</span>
+                <span>users</span>
+                <span class="relation-type">Many-to-One</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

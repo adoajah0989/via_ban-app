@@ -4,8 +4,10 @@ namespace App\Filament\Pages;
 
 use App\Models\tb_pengepul as Pengepul;
 use App\Models\tb_laporan_pengepul;
+use App\Models\tb_transaksi;
 use App\Services\PengepulReportService;
 use BackedEnum;
+use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section;
@@ -37,14 +39,20 @@ class LaporanPengepul extends Page implements HasForms, HasTable
 
     protected static ?string $title = 'Laporan Pengepul';
 
-    // Mengganti view agar kita bisa mengatur tata letak form dan table
     protected string $view = 'filament.pages.laporan-pengepul';
 
     public ?array $data = [];
+    
+    // Preview summary properties
+    public int $previewPending = 0;
+    public int $previewSelesai = 0;
+    public int $previewBatal = 0;
+    public int $previewTotal = 0;
+    public float $previewNominal = 0;
+    public bool $showPreview = false;
 
     public function mount(): void
     {
-        // Default data: format PDF, bulan saat ini
         $this->data = [
             'format' => 'pdf',
             'bulan' => now()->startOfMonth()->toDateString(),
@@ -66,14 +74,18 @@ class LaporanPengepul extends Page implements HasForms, HasTable
                             ->options(fn () => Pengepul::query()->orderBy('nama')->pluck('nama', 'id_pengepul'))
                             ->searchable()
                             ->required()
-                            ->columnSpan(1), // Menggunakan 1 kolom
+                            ->live()
+                            ->afterStateUpdated(fn () => $this->updatePreview())
+                            ->columnSpan(1),
 
                         DatePicker::make('bulan')
                             ->label('Bulan Laporan')
                             ->displayFormat('F Y')
-                            ->native(false) // Menggunakan Filament DatePicker (lebih modern)
+                            ->native(false)
                             ->maxDate(now())
                             ->required()
+                            ->live()
+                            ->afterStateUpdated(fn () => $this->updatePreview())
                             ->columnSpan(1),
 
                         Select::make('format')
@@ -85,22 +97,45 @@ class LaporanPengepul extends Page implements HasForms, HasTable
                             ->default('pdf')
                             ->required()
                             ->columnSpan(1),
-                    ])->columns(3), // Mengatur semua field dalam 3 kolom
+                    ])->columns(3),
 
             ])
             ->statePath('data');
     }
 
+    public function updatePreview(): void
+    {
+        $pengepulId = $this->data['pengepul_id'] ?? null;
+        $bulan = $this->data['bulan'] ?? null;
+
+        if (!$pengepulId || !$bulan) {
+            $this->showPreview = false;
+            return;
+        }
+
+        $date = Carbon::parse($bulan);
+        $startOfMonth = $date->copy()->startOfMonth();
+        $endOfMonth = $date->copy()->endOfMonth();
+
+        $query = tb_transaksi::where('id_pengepul', $pengepulId)
+            ->whereBetween('tanggal', [$startOfMonth, $endOfMonth]);
+
+        $this->previewPending = (clone $query)->where('status', 'pending')->count();
+        $this->previewSelesai = (clone $query)->where('status', 'selesai')->count();
+        $this->previewBatal = (clone $query)->where('status', 'batal')->count();
+        $this->previewTotal = (clone $query)->count();
+        $this->previewNominal = (clone $query)->where('status', 'selesai')->sum('sales');
+        
+        $this->showPreview = true;
+    }
+
     public function downloadReport(): StreamedResponse
     {
         $data = $this->form->getState();
-
-        // Tambahkan validasi jika diperlukan sebelum memanggil service
         
         return PengepulReportService::download($data);
     }
 
-    // Implementasi HasTable untuk menampilkan Riwayat Laporan
     public function table(Table $table): Table
     {
         return $table
@@ -121,10 +156,10 @@ class LaporanPengepul extends Page implements HasForms, HasTable
                     ->label('Format')
                     ->formatStateUsing(fn ($state) => strtoupper(pathinfo($state, PATHINFO_EXTENSION)))
                     ->badge()
-                    ->color('info'), // Memberikan warna badge biru
+                    ->color('info'),
             ])
-            ->heading('Riwayat 20 Laporan Terakhir') // Judul untuk tabel riwayat
+            ->heading('Riwayat 20 Laporan Terakhir')
             ->emptyStateHeading('Belum ada laporan yang dibuat.')
-            ->paginated([20]); // Membatasi riwayat hanya 20 entri per halaman.
+            ->paginated([20]);
     }
 }

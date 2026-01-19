@@ -1,0 +1,66 @@
+@startuml activity_kelola_transaksi
+
+|Admin|
+start
+:Membuka Halaman Transaksi;
+
+|Sistem|
+:menampilkan halaman dan tabel transaksi;
+
+|Admin|
+:Aksi;
+
+switch (Pilih Aksi?)
+case (Tambah)
+  |Sistem|
+  :menampilkan form tambah;
+  |Admin|
+  :mengisi form tambah transaksi;
+  :klik "simpan";
+  
+case (Ubah)
+  |Sistem|
+  :menampilkan form ubah;
+  |Admin|
+  :mengubah data transaksi;
+  :klik "simpan";
+  
+case (Hapus)
+  |Sistem|
+  :menampilkan konfirmasi hapus;
+  if (Konfirmasi?) then (ya)
+    :hapus data transaksi;
+  else (batal)
+  endif
+  
+case (Validasi)
+  |Admin|
+  :memilih transaksi pending;
+  :memeriksa detail transaksi;
+  if (Data Valid?) then (ya)
+    :klik "Validasi";
+    |Sistem|
+    :ubah status menjadi "selesai";
+    :kirim notifikasi ke Telegram pengepul;
+  else (tidak)
+    |Admin|
+    :koreksi data terlebih dahulu;
+  endif
+  
+case (Cetak Laporan)
+  |Sistem|
+  :menampilkan modal form laporan;
+  |Admin|
+  :memilih nama pengepul dan bulan transaksi;
+  :klik "Buat Laporan";
+  |Sistem|
+  :generate file PDF laporan;
+  
+endswitch
+
+|Sistem|
+:kembali ke halaman transaksi;
+
+stop
+
+@enduml

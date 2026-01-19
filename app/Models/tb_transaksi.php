@@ -53,6 +53,19 @@ class tb_transaksi extends Model
                 $model->kode_transaksi = $prefix . str_pad((string) $sequence, 2, '0', STR_PAD_LEFT);
             }
         });
+
+        // Notifikasi pengepul saat status berubah ke selesai
+        static::updated(function ($model) {
+            // Cek apakah status berubah dari pending ke selesai
+            if ($model->wasChanged('status')) {
+                $oldStatus = $model->getOriginal('status');
+                $newStatus = $model->status;
+
+                if ($oldStatus === 'pending' && $newStatus === 'selesai') {
+                    TransaksiNotificationService::notifyPengepulTransaksiVerified($model);
+                }
+            }
+        });
     }
 
 

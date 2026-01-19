@@ -1,0 +1,79 @@
+# Class Diagram - Sistem Pengelolaan Limbah Ban
+# Format: Draw.io CSV Import
+# Cara import: Arrange > Insert > Advanced > CSV...
+#
+# label: %name%
+# style: swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;swimlaneFillColor=#ffffff;
+# namespace: csvimport-
+# connect: {"from": "refs", "to": "id", "invert": true, "style": "edgeStyle=entityRelationEdgeStyle;endArrow=ERmandOne;startArrow=ERone;"}
+# width: auto
+# height: auto
+# padding: 8
+# ignore: id,refs
+# link: url
+# nodespacing: 40
+# levelspacing: 100
+# edgespacing: 40
+# layout: horizontalflow
+## CSV data starts below
+
+id,name,attributes,methods,refs
+1,tb_transaksi,"+ id_transaksi: int «PK»
++ id_toko: int «FK»
++ id_pengepul: int «FK»
++ kode_transaksi: string
++ tanggal: date
++ sales: decimal
++ total_pickup: int
++ status: enum
++ created_at: timestamp
++ updated_at: timestamp","+ details(): HasMany
++ toko(): BelongsTo
++ pengepul(): BelongsTo",
+2,detail_transaksi,"+ id_detail: int «PK»
++ id_transaksi: int «FK»
++ id_limbah: int «FK»
++ jumlah: int
++ harga_saat_transaksi: decimal","+ transaksi(): BelongsTo
++ limbah(): BelongsTo",1
+3,tb_toko,"+ id_toko: int «PK»
++ id_pusat: int «FK»
++ nama_toko: string
++ kode_toko: string
++ kode_wilayah: string
++ alamat: text
++ nomor_telepon: string","+ pusat(): BelongsTo",1
+4,tb_pengepul,"+ id_pengepul: int «PK»
++ nama: string
++ nomor_telepon: string
++ nomor_kendaraan: string","+ telegramAccount(): HasOne",1
+5,tb_limbah,"+ id_limbah: int «PK»
++ id_pusat: int «FK»
++ nama_limbah: string
++ kode_limbah: string
++ harga: decimal","+ pusat(): BelongsTo",2
+6,tb_wilayah,"+ kode_wilayah: string «PK»
++ nama_wilayah: string",,
+7,tb_pusat_toko,"+ id_pusat: int «PK»
++ nama_pusat: string
++ kode_pusat: string
++ kontak: string","+ tokos(): HasMany
++ limbah(): HasMany",3
+8,tb_harga_wilayah,"+ id: int «PK»
++ id_limbah: int «FK»
++ kode_wilayah: string «FK»
++ harga: decimal","+ wilayah(): BelongsTo
++ limbah(): BelongsTo","5,6"
+9,users,"+ id: int «PK»
++ name: string
++ email: string
++ password: string","+ telegramAccount(): HasOne",
+10,tb_telegram_user,"+ id: int «PK»
++ telegram_user_id: bigint
++ username: string
++ phone: string
++ role: enum
++ id_pengepul: int «FK»
++ id_user: int «FK»
++ is_active: boolean","+ pengepul(): BelongsTo
++ admin(): BelongsTo","4,9"

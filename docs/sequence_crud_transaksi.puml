@@ -1,0 +1,48 @@
+@startuml sequence_crud_transaksi
+
+title CRUD data transaksi
+
+actor Admin
+boundary "data transaksi" as view
+control "controller" as ctrl
+database "database" as db
+
+== Tambah Data Transaksi ==
+
+Admin -> view: 1. mengakses halaman transaksi
+view -> ctrl: 2. klik tombol tambah transaksi
+ctrl -> view: 3. menampilkan form tambah transaksi
+Admin -> view: 4. isi form transaksi
+view -> ctrl: 5. klik simpan data
+ctrl -> db: 6. simpan data transaksi ke database
+db -> ctrl: 7. proses tambah transaksi
+ctrl -> view: 8. mengirim notifikasi data dimasukan
+view -> Admin: 9. menampilkan notifikasi hasil proses tambah transaksi
+
+== Ubah Data Transaksi ==
+
+Admin -> view: 1. mengakses halaman transaksi
+view -> ctrl: 2. klik tombol edit transaksi
+ctrl -> db: 3. ambil data transaksi
+db -> ctrl: 4. kirim data transaksi
+ctrl -> view: 5. menampilkan form edit transaksi
+Admin -> view: 6. ubah data transaksi
+view -> ctrl: 7. klik simpan perubahan
+ctrl -> db: 8. update data transaksi ke database
+db -> ctrl: 9. proses ubah transaksi
+ctrl -> view: 10. mengirim notifikasi data diubah
+view -> Admin: 11. menampilkan notifikasi hasil proses ubah transaksi
+
+== Hapus Data Transaksi ==
+
+Admin -> view: 1. mengakses halaman transaksi
+view -> ctrl: 2. klik tombol hapus transaksi
+ctrl -> view: 3. menampilkan konfirmasi hapus
+Admin -> view: 4. konfirmasi hapus data
+view -> ctrl: 5. kirim permintaan hapus
+ctrl -> db: 6. hapus data transaksi dari database
+db -> ctrl: 7. proses hapus transaksi
+ctrl -> view: 8. mengirim notifikasi data dihapus
+view -> Admin: 9. menampilkan notifikasi hasil proses hapus transaksi
+
+@enduml

@@ -13,6 +13,7 @@ use App\Services\PengepulSummaryService;
 use App\Services\PengepulReportService;
 use App\Services\TransaksiNotificationService;
 use App\Services\TelegramSessionService;
+use App\Services\TransaksiEditService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
@@ -53,6 +54,8 @@ class TelegramWebhookController extends Controller
                     TelegramBotService::sendMessage($chatId, implode("\n", $lines));
                 }
             } elseif ($data === 'pengepul_menu_transaksi') {
+                TelegramBotService::sendPengepulTransaksiMenu($chatId);
+            } elseif ($data === 'pengepul_trx_add') {
                 // Minta kode toko terlebih dahulu sebelum menjelaskan format TRX.
                 TelegramSessionService::set($telegramUserId, 'wait_kode_toko_for_trx_help');
                 TelegramBotService::sendMessage(
@@ -60,10 +63,31 @@ class TelegramWebhookController extends Controller
                     "Silakan kirim *kode toko* terlebih dahulu.\n"
                     . "Contoh: `JKT003`"
                 );
+            } elseif ($data === 'pengepul_trx_edit') {
+                $this->handleEditTransaksiList($chatId, $telegramUserId, $identity);
+            } elseif (str_starts_with($data, 'trx_edit_select_')) {
+                $transaksiId = (int) str_replace('trx_edit_select_', '', $data);
+                $this->handleEditTransaksiSelect($chatId, $telegramUserId, $identity, $transaksiId);
+            } elseif ($data === 'trx_edit_date') {
+                $this->handleEditTypeDate($chatId, $telegramUserId);
+            } elseif ($data === 'trx_edit_items') {
+                $this->handleEditTypeItems($chatId, $telegramUserId);
+            } elseif ($data === 'trx_edit_cancel') {
+                TelegramSessionService::clear($telegramUserId);
+                TelegramBotService::sendMessage($chatId, "Edit transaksi dibatalkan.");
+                TelegramBotService::sendPengepulMainMenu($chatId);
+            } elseif ($data === 'trx_edit_confirm_ok') {
+                $this->finalizeEditFromSession($chatId, $telegramUserId, $identity);
+            } elseif ($data === 'trx_edit_confirm_cancel') {
+                TelegramSessionService::clear($telegramUserId);
+                TelegramBotService::sendMessage($chatId, "Perubahan dibatalkan.");
+                TelegramBotService::sendPengepulMainMenu($chatId);
             } elseif ($data === 'admin_menu_validate') {
                 TelegramBotService::sendMessage(
                     $chatId,
-                    "Fitur validasi transaksi via bot sedang disiapkan."
+                    "Validasi transaksi dilakukan melalui dashboard web.\n"
+                    . "Silakan buka tautan berikut lalu login sebagai admin:\n"
+                    . config('app.url') . "/admin"
                 );
             } elseif ($data === 'trx_confirm_ok') {
                 $this->finalizeTrxFromSession($chatId, $telegramUserId, $identity);
@@ -71,6 +95,14 @@ class TelegramWebhookController extends Controller
                 TelegramSessionService::clear($telegramUserId);
                 TelegramBotService::sendMessage($chatId, "Input transaksi dibatalkan.");
                 TelegramBotService::sendPengepulMainMenu($chatId);
+            } elseif ($data === 'trx_ganti_toko') {
+                // Reset state ke pilih toko ulang
+                TelegramSessionService::set($telegramUserId, 'wait_kode_toko_for_trx_help');
+                TelegramBotService::sendMessage(
+                    $chatId,
+                    "Silakan kirim *kode toko* yang baru.\n"
+                    . "Contoh: `JKT003`"
+                );
             }
 
             return response()->noContent();
@@ -99,6 +131,17 @@ class TelegramWebhookController extends Controller
 
         // Command khusus /trx untuk memulai alur input transaksi via format satu pesan.
         if ($command === '/trx') {
+            // Validasi: hanya pengepul yang bisa input transaksi
+            if ($identity['role'] !== 'pengepul') {
+                TelegramBotService::sendMessage(
+                    $chatId,
+                    "Format TRX hanya berlaku untuk akun pengepul.\n\n"
+                    . "Untuk validasi transaksi, gunakan dashboard web admin:\n"
+                    . config('app.url') . "/admin"
+                );
+                return response()->noContent();
+            }
+
             TelegramSessionService::set($telegramUserId, 'wait_kode_toko_for_trx_help');
             TelegramBotService::sendMessage(
                 $chatId,
@@ -186,6 +229,18 @@ class TelegramWebhookController extends Controller
             && ! str_starts_with(strtoupper($text), 'TRX ')
         ) {
             $this->handleTrxHelpForToko($chatId, $telegramUserId, $text);
+            return response()->noContent();
+        }
+
+        // Handle edit transaction - wait for new date
+        if ($state === 'wait_new_date' && $command === null) {
+            $this->handleNewDateInput($chatId, $telegramUserId, $text, $identity);
+            return response()->noContent();
+        }
+
+        // Handle edit transaction - wait for new items
+        if ($state === 'wait_new_items' && $command === null) {
+            $this->handleNewItemsInput($chatId, $telegramUserId, $text, $identity);
             return response()->noContent();
         }
 
@@ -359,7 +414,18 @@ class TelegramWebhookController extends Controller
         $lines[] = "Setelah menyalin dan mengubah jumlah sesuai nota fisik,\n"
             . "kirim pesan TRX di atas untuk mendapatkan preview dan konfirmasi.";
 
-        TelegramBotService::sendMessage($chatId, implode("\n", $lines));
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '🔄 Ganti Toko', 'callback_data' => 'trx_ganti_toko'],
+                ],
+                [
+                    ['text' => '❌ Batal', 'callback_data' => 'trx_confirm_cancel'],
+                ],
+            ],
+        ];
+
+        TelegramBotService::sendMessageWithKeyboard($chatId, implode("\n", $lines), $keyboard);
     }
 
     /**
@@ -752,8 +818,11 @@ class TelegramWebhookController extends Controller
             $transaksi->details()->createMany($summary['rows']);
         }
 
-        // Kirim nota dan info ringkas.
+        // Kirim nota dan info ringkas ke pengepul
         TransaksiNotificationService::sendNotaToPengepul($transaksi);
+
+        // Kirim notifikasi ke admin untuk validasi
+        TransaksiNotificationService::notifyAdminNewTransaction($transaksi);
 
         TelegramSessionService::clear($telegramUserId);
 
@@ -775,4 +844,446 @@ class TelegramWebhookController extends Controller
         TelegramBotService::sendMessage($chatId, implode("\n", $lines));
         TelegramBotService::sendPengepulMainMenu($chatId);
     }
+
+    /**
+     * Handle edit transaction - show list of pending transactions.
+     */
+    protected function handleEditTransaksiList(int $chatId, int $telegramUserId, array $identity): void
+    {
+        if ($identity['role'] !== 'pengepul' || ! $identity['pengepul_id']) {
+            TelegramBotService::sendMessage($chatId, 'Fitur edit transaksi hanya untuk akun pengepul.');
+            return;
+        }
+
+        $transactions = TransaksiEditService::getPendingTransactionsForPengepul($identity['pengepul_id'], 10);
+
+        if ($transactions->isEmpty()) {
+            TelegramBotService::sendMessage(
+                $chatId,
+                "Tidak ada transaksi pending untuk diedit.\n\n"
+                . "Transaksi yang sudah divalidasi admin tidak bisa diedit lagi."
+            );
+            TelegramBotService::sendPengepulMainMenu($chatId);
+            return;
+        }
+
+        $lines = [];
+        $lines[] = "*Pilih transaksi yang akan diedit:*";
+        $lines[] = "";
+
+        $buttons = [];
+        foreach ($transactions as $index => $trx) {
+            $tanggalLabel = Carbon::parse($trx->tanggal)->format('d M Y');
+            $tokoNama = $trx->toko->nama_toko ?? '-';
+            $kode = $trx->kode_transaksi ?? $trx->id_transaksi;
+            
+            $lines[] = ($index + 1) . ". {$kode} - {$tokoNama} ({$tanggalLabel})";
+            $lines[] = "   Rp " . number_format($trx->sales, 0, ',', '.');
+            $lines[] = "";
+
+            $buttons[] = [
+                ['text' => ($index + 1) . ". {$tokoNama} - {$tanggalLabel}", 'callback_data' => "trx_edit_select_{$trx->id_transaksi}"]
+            ];
+        }
+
+        $lines[] = "_Tap salah satu untuk melihat detail._";
+
+        $keyboard = ['inline_keyboard' => $buttons];
+
+        TelegramBotService::sendMessageWithKeyboard($chatId, implode("\n", $lines), $keyboard);
+    }
+
+    /**
+     * Handle transaction selection for editing.
+     */
+    protected function handleEditTransaksiSelect(int $chatId, int $telegramUserId, array $identity, int $transaksiId): void
+    {
+        // Validate permission
+        if (! TransaksiEditService::validateEditPermission($transaksiId, $identity['pengepul_id'] ?? 0)) {
+            TelegramBotService::sendMessage($chatId, "Anda tidak memiliki akses untuk mengedit transaksi ini.");
+            return;
+        }
+
+        $transaksi = TransaksiEditService::getTransaksiDetailsForEdit($transaksiId);
+
+        if (! $transaksi) {
+            TelegramBotService::sendMessage($chatId, "Transaksi tidak ditemukan.");
+            return;
+        }
+
+        // Store in session
+        TelegramSessionService::set($telegramUserId, 'wait_edit_action', [
+            'transaksi_id' => $transaksi->id_transaksi,
+            'toko_id' => $transaksi->id_toko,
+            'kode_wilayah' => $transaksi->kode_wilayah,
+        ]);
+
+        // Show transaction details
+        $display = TransaksiEditService::formatTransaksiForDisplay($transaksi);
+
+        $lines = [];
+        $lines[] = "*Detail Transaksi*";
+        $lines[] = "";
+        $lines[] = $display;
+        $lines[] = "";
+        $lines[] = "Apa yang ingin Anda edit?";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📅 Edit Tanggal', 'callback_data' => 'trx_edit_date'],
+                ],
+                [
+                    ['text' => '📦 Edit Jumlah Limbah', 'callback_data' => 'trx_edit_items'],
+                ],
+                [
+                    ['text' => '❌ Batal', 'callback_data' => 'trx_edit_cancel'],
+                ],
+            ],
+        ];
+
+        TelegramBotService::sendMessageWithKeyboard($chatId, implode("\n", $lines), $keyboard);
+    }
+
+    /**
+     * Handle edit type - date.
+     */
+    protected function handleEditTypeDate(int $chatId, int $telegramUserId): void
+    {
+        $data = TelegramSessionService::getData($telegramUserId);
+        $transaksiId = (int) ($data['transaksi_id'] ?? 0);
+
+        if (! $transaksiId) {
+            TelegramBotService::sendMessage($chatId, "Session tidak valid. Silakan mulai lagi.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        $transaksi = TransaksiEditService::getTransaksiDetailsForEdit($transaksiId);
+        if (! $transaksi) {
+            TelegramBotService::sendMessage($chatId, "Transaksi tidak ditemukan.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        TelegramSessionService::set($telegramUserId, 'wait_new_date', $data);
+
+        $currentDate = Carbon::parse($transaksi->tanggal)->format('d M Y');
+
+        TelegramBotService::sendMessage(
+            $chatId,
+            "Tanggal saat ini: *{$currentDate}*\n\n"
+            . "Kirim tanggal baru dalam format `MM-DD`\n"
+            . "Contoh: `12-30` untuk 30 Desember " . now()->year . "\n\n"
+            . "Atau kirim /cancel untuk membatalkan."
+        );
+    }
+
+    /**
+     * Handle edit type - items.
+     */
+    protected function handleEditTypeItems(int $chatId, int $telegramUserId): void
+    {
+        $data = TelegramSessionService::getData($telegramUserId);
+        $transaksiId = (int) ($data['transaksi_id'] ?? 0);
+
+        if (! $transaksiId) {
+            TelegramBotService::sendMessage($chatId, "Session tidak valid. Silakan mulai lagi.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        $transaksi = TransaksiEditService::getTransaksiDetailsForEdit($transaksiId);
+        if (! $transaksi) {
+            TelegramBotService::sendMessage($chatId, "Transaksi tidak ditemukan.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        TelegramSessionService::set($telegramUserId, 'wait_new_items', $data);
+
+        $lines = [];
+        $lines[] = "*Data limbah saat ini:*";
+        $lines[] = "";
+
+        foreach ($transaksi->details as $detail) {
+            $namaLimbah = $detail->limbah->nama_limbah ?? "ID {$detail->id_limbah}";
+            $lines[] = "{$detail->id_limbah}:{$detail->jumlah} ({$namaLimbah})";
+        }
+
+        $lines[] = "";
+        $lines[] = "Kirim data limbah baru dalam format:";
+        $lines[] = "`ID:JUMLAH ID:JUMLAH ...`";
+        $lines[] = "";
+        $lines[] = "Contoh: `1:20 2:15 3:10`";
+        $lines[] = "";
+        $lines[] = "Atau kirim /cancel untuk membatalkan.";
+
+        TelegramBotService::sendMessage($chatId, implode("\n", $lines));
+    }
+
+    /**
+     * Handle new date input.
+     */
+    protected function handleNewDateInput(int $chatId, int $telegramUserId, string $text, array $identity): void
+    {
+        $data = TelegramSessionService::getData($telegramUserId);
+        $transaksiId = (int) ($data['transaksi_id'] ?? 0);
+
+        if (! $transaksiId) {
+            TelegramBotService::sendMessage($chatId, "Session tidak valid. Silakan mulai lagi.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        // Parse date MM-DD
+        if (! preg_match('/^(\d{1,2})-(\d{1,2})$/', trim($text), $m)) {
+            TelegramBotService::sendMessage(
+                $chatId,
+                "Format tanggal tidak valid.\nGunakan format MM-DD, contoh: 12-30"
+            );
+            return;
+        }
+
+        $mm = (int) $m[1];
+        $dd = (int) $m[2];
+
+        try {
+            $year = now()->year;
+            $newDate = Carbon::createFromDate($year, $mm, $dd)->toDateString();
+        } catch (\Throwable $e) {
+            TelegramBotService::sendMessage(
+                $chatId,
+                "Tanggal tidak valid. Pastikan bulan (1-12) dan hari (1-31) benar."
+            );
+            return;
+        }
+
+        $transaksi = TransaksiEditService::getTransaksiDetailsForEdit($transaksiId);
+        if (! $transaksi) {
+            TelegramBotService::sendMessage($chatId, "Transaksi tidak ditemukan.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        // Check for duplicate transaction on new date
+        $exists = Transaksi::query()
+            ->where('id_pengepul', $identity['pengepul_id'])
+            ->where('id_toko', $transaksi->id_toko)
+            ->whereDate('tanggal', $newDate)
+            ->where('id_transaksi', '!=', $transaksiId)
+            ->exists();
+
+        if ($exists) {
+            TelegramBotService::sendMessage(
+                $chatId,
+                "Sudah ada transaksi untuk toko ini pada tanggal tersebut.\n"
+                . "Pilih tanggal lain atau edit transaksi yang sudah ada."
+            );
+            return;
+        }
+
+        // Store for confirmation
+        $data['new_date'] = $newDate;
+        TelegramSessionService::set($telegramUserId, 'trx_edit_confirm', $data);
+
+        $oldDateLabel = Carbon::parse($transaksi->tanggal)->format('d M Y');
+        $newDateLabel = Carbon::parse($newDate)->format('d M Y');
+
+        $lines = [];
+        $lines[] = "*Preview Perubahan*";
+        $lines[] = "";
+        $lines[] = "Toko: {$transaksi->toko->nama_toko}";
+        $lines[] = "Kode: {$transaksi->kode_transaksi}";
+        $lines[] = "";
+        $lines[] = "Tanggal lama: ~{$oldDateLabel}~";
+        $lines[] = "Tanggal baru: *{$newDateLabel}*";
+        $lines[] = "";
+        $lines[] = "Apakah Anda yakin ingin menyimpan perubahan?";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '✅ Simpan Perubahan', 'callback_data' => 'trx_edit_confirm_ok'],
+                ],
+                [
+                    ['text' => '❌ Batal', 'callback_data' => 'trx_edit_confirm_cancel'],
+                ],
+            ],
+        ];
+
+        TelegramBotService::sendMessageWithKeyboard($chatId, implode("\n", $lines), $keyboard);
+    }
+
+    /**
+     * Handle new items input.
+     */
+    protected function handleNewItemsInput(int $chatId, int $telegramUserId, string $text, array $identity): void
+    {
+        $data = TelegramSessionService::getData($telegramUserId);
+        $transaksiId = (int) ($data['transaksi_id'] ?? 0);
+        $kodeWilayah = (string) ($data['kode_wilayah'] ?? '');
+
+        if (! $transaksiId) {
+            TelegramBotService::sendMessage($chatId, "Session tidak valid. Silakan mulai lagi.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        $transaksi = TransaksiEditService::getTransaksiDetailsForEdit($transaksiId);
+        if (! $transaksi) {
+            TelegramBotService::sendMessage($chatId, "Transaksi tidak ditemukan.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        // Parse items ID:QTY
+        $tokens = preg_split('/\s+/', trim($text));
+        $qtyMap = [];
+        
+        foreach ($tokens as $token) {
+            if (! str_contains($token, ':')) {
+                continue;
+            }
+            
+            [$idStr, $qtyStr] = explode(':', $token, 2);
+            $id = (int) $idStr;
+            $qty = (int) $qtyStr;
+            
+            if ($id <= 0 || $qty <= 0) {
+                continue;
+            }
+            
+            $qtyMap[$id] = ($qtyMap[$id] ?? 0) + $qty;
+        }
+
+        if (empty($qtyMap)) {
+            TelegramBotService::sendMessage(
+                $chatId,
+                "Tidak ada pasangan ID:JUMLAH yang valid.\nContoh: 1:10 2:5"
+            );
+            return;
+        }
+
+        $idPusat = (int) ($transaksi->toko->id_pusat ?? 0);
+        $summary = TransaksiDetailService::summarize($qtyMap, $kodeWilayah, $idPusat);
+
+        // Store for confirmation
+        $data['new_qty_map'] = $qtyMap;
+        $data['new_summary'] = $summary;
+        TelegramSessionService::set($telegramUserId, 'trx_edit_confirm', $data);
+
+        $lines = [];
+        $lines[] = "*Preview Perubahan*";
+        $lines[] = "";
+        $lines[] = "Toko: {$transaksi->toko->nama_toko}";
+        $lines[] = "Kode: {$transaksi->kode_transaksi}";
+        $lines[] = "Tanggal: " . Carbon::parse($transaksi->tanggal)->format('d M Y');
+        $lines[] = "";
+        $lines[] = "*Rincian limbah baru:*";
+
+        foreach ($summary['rows'] as $row) {
+            $id = $row['id_limbah'];
+            $nama = tb_limbah::find($id)?->nama_limbah ?? "ID {$id}";
+            $jumlah = (int) $row['jumlah'];
+            $harga = (int) $row['harga_saat_transaksi'];
+            $subtotal = $jumlah * $harga;
+            $lines[] = "- {$nama}: {$jumlah} x " . number_format($harga, 0, ',', '.') . ' = ' . number_format($subtotal, 0, ',', '.');
+        }
+
+        $lines[] = "";
+        $lines[] = "Total pickup baru: {$summary['total_pickup']}";
+        $lines[] = "Total nominal baru: Rp " . number_format($summary['total_sales'], 0, ',', '.');
+        $lines[] = "";
+        $lines[] = "Apakah Anda yakin ingin menyimpan perubahan?";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '✅ Simpan Perubahan', 'callback_data' => 'trx_edit_confirm_ok'],
+                ],
+                [
+                    ['text' => '❌ Batal', 'callback_data' => 'trx_edit_confirm_cancel'],
+                ],
+            ],
+        ];
+
+        TelegramBotService::sendMessageWithKeyboard($chatId, implode("\n", $lines), $keyboard);
+    }
+
+    /**
+     * Finalize edit from session after confirmation.
+     */
+    protected function finalizeEditFromSession(int $chatId, int $telegramUserId, array $identity): void
+    {
+        $data = TelegramSessionService::getData($telegramUserId);
+        $transaksiId = (int) ($data['transaksi_id'] ?? 0);
+
+        if (! $transaksiId) {
+            TelegramBotService::sendMessage($chatId, "Session tidak valid. Silakan mulai lagi.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        // Validate permission again
+        if (! TransaksiEditService::validateEditPermission($transaksiId, $identity['pengepul_id'] ?? 0)) {
+            TelegramBotService::sendMessage($chatId, "Anda tidak memiliki akses untuk mengedit transaksi ini.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        $updateData = [];
+
+        // Check what was edited
+        if (isset($data['new_date'])) {
+            $updateData['tanggal'] = $data['new_date'];
+        }
+
+        if (isset($data['new_qty_map']) && isset($data['new_summary'])) {
+            $updateData['qty_map'] = $data['new_qty_map'];
+            $updateData['summary'] = $data['new_summary'];
+        }
+
+        if (empty($updateData)) {
+            TelegramBotService::sendMessage($chatId, "Tidak ada perubahan untuk disimpan.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        // Update transaction
+        $transaksi = TransaksiEditService::updateTransaksi($transaksiId, $updateData);
+
+        if (! $transaksi) {
+            TelegramBotService::sendMessage($chatId, "Gagal mengupdate transaksi. Silakan coba lagi.");
+            TelegramSessionService::clear($telegramUserId);
+            return;
+        }
+
+        // Send updated nota PDF to pengepul
+        TransaksiNotificationService::sendNotaToPengepul($transaksi);
+
+        // Notify admin about transaction edit
+        TransaksiNotificationService::notifyAdminNewTransaction($transaksi, true);
+
+        TelegramSessionService::clear($telegramUserId);
+
+        $kode = $transaksi->kode_transaksi ?? $transaksi->id_transaksi;
+        $tanggalLabel = Carbon::parse($transaksi->tanggal)->format('d M Y');
+
+        $lines = [];
+        $lines[] = "✅ *Transaksi berhasil diupdate!*";
+        $lines[] = "";
+        $lines[] = "ID: `{$kode}`";
+        $lines[] = "Toko: {$transaksi->toko->nama_toko}";
+        $lines[] = "Tanggal: {$tanggalLabel}";
+        $lines[] = "";
+        $lines[] = "Total pickup: {$transaksi->total_pickup}";
+        $lines[] = "Total nominal: Rp " . number_format($transaksi->sales, 0, ',', '.');
+        $lines[] = "";
+        $lines[] = "_Nota transaksi yang diperbarui telah dikirim sebagai PDF._";
+
+        TelegramBotService::sendMessage($chatId, implode("\n", $lines));
+        TelegramBotService::sendPengepulMainMenu($chatId);
+    }
 }
+

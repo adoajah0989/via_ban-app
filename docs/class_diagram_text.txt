@@ -1,0 +1,113 @@
+## Class Diagram - Sistem Pengelolaan Limbah Ban
+## Format: Draw.io Text (Arrange > Insert > Advanced > From Text...)
+## Pilih "Diagram" sebagai tipe
+
+# tb_transaksi
+- id_transaksi: int <<PK>>
+- id_toko: int <<FK>>
+- id_pengepul: int <<FK>>
+- kode_transaksi: string
+- tanggal: date
+- sales: decimal
+- total_pickup: int
+- status: enum
+- created_at: timestamp
+- updated_at: timestamp
+--
++ details(): HasMany
++ toko(): BelongsTo
++ pengepul(): BelongsTo
+
+# detail_transaksi
+- id_detail: int <<PK>>
+- id_transaksi: int <<FK>>
+- id_limbah: int <<FK>>
+- jumlah: int
+- harga_saat_transaksi: decimal
+--
++ transaksi(): BelongsTo
++ limbah(): BelongsTo
+
+# tb_toko
+- id_toko: int <<PK>>
+- id_pusat: int <<FK>>
+- nama_toko: string
+- kode_toko: string
+- kode_wilayah: string
+- alamat: text
+- nomor_telepon: string
+--
++ pusat(): BelongsTo
+
+# tb_pengepul
+- id_pengepul: int <<PK>>
+- nama: string
+- nomor_telepon: string
+- nomor_kendaraan: string
+--
++ telegramAccount(): HasOne
+
+# tb_limbah
+- id_limbah: int <<PK>>
+- id_pusat: int <<FK>>
+- nama_limbah: string
+- kode_limbah: string
+- harga: decimal
+--
++ pusat(): BelongsTo
+
+# tb_wilayah
+- kode_wilayah: string <<PK>>
+- nama_wilayah: string
+
+# tb_pusat_toko
+- id_pusat: int <<PK>>
+- nama_pusat: string
+- kode_pusat: string
+- kontak: string
+--
++ tokos(): HasMany
++ limbah(): HasMany
+
+# tb_harga_wilayah
+- id: int <<PK>>
+- id_limbah: int <<FK>>
+- kode_wilayah: string <<FK>>
+- harga: decimal
+--
++ wilayah(): BelongsTo
++ limbah(): BelongsTo
+
+# users
+- id: int <<PK>>
+- name: string
+- email: string
+- password: string
+--
++ telegramAccount(): HasOne
+
+# tb_telegram_user
+- id: int <<PK>>
+- telegram_user_id: bigint
+- username: string
+- phone: string
+- role: enum
+- id_pengepul: int <<FK>>
+- id_user: int <<FK>>
+- is_active: boolean
+--
++ pengepul(): BelongsTo
++ admin(): BelongsTo
+
+## RELASI (hubungkan secara manual di Draw.io)
+## =============================================
+## tb_transaksi --1:N-- detail_transaksi (via id_transaksi)
+## tb_transaksi --N:1-- tb_toko (via id_toko)
+## tb_transaksi --N:1-- tb_pengepul (via id_pengepul)
+## detail_transaksi --N:1-- tb_limbah (via id_limbah)
+## tb_toko --N:1-- tb_pusat_toko (via id_pusat)
+## tb_limbah --N:1-- tb_pusat_toko (via id_pusat)
+## tb_harga_wilayah --N:1-- tb_limbah (via id_limbah)
+## tb_harga_wilayah --N:1-- tb_wilayah (via kode_wilayah)
+## tb_telegram_user --N:1-- tb_pengepul (via id_pengepul)
+## tb_telegram_user --N:1-- users (via id_user)

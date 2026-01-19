@@ -1,0 +1,34 @@
+@startuml sequence_validasi_transaksi
+
+title Validasi Transaksi
+
+actor admin
+boundary "halaman transaksi" as view
+control "controller" as ctrl
+database "database" as db
+actor pengepul
+
+admin -> view: 1. mengakses halaman transaksi
+view -> ctrl: 2. meminta data transaksi
+ctrl -> db: 3. ambil data transaksi pending
+db -> ctrl: 4. data transaksi
+ctrl -> view: 5. menampilkan daftar transaksi
+view -> admin: 6. tampilkan tabel transaksi
+
+admin -> view: 7. memilih transaksi pending
+view -> ctrl: 8. meminta detail transaksi
+ctrl -> db: 9. ambil detail transaksi
+db -> ctrl: 10. data detail transaksi
+ctrl -> view: 11. menampilkan detail
+view -> admin: 12. tampilkan detail transaksi
+
+admin -> view: 13. klik tombol "Validasi"
+view -> ctrl: 14. proses validasi
+ctrl -> db: 15. ubah status menjadi "selesai"
+db -> ctrl: 16. status berhasil diubah
+ctrl -> pengepul: 17. kirim notifikasi via Telegram
+pengepul -> pengepul: 18. menerima notifikasi transaksi terverifikasi
+ctrl -> view: 19. mengirim hasil validasi
+view -> admin: 20. menampilkan pesan berhasil
+
+@enduml
